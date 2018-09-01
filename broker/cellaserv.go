@@ -3,7 +3,6 @@ package broker
 import (
 	"encoding/json"
 	"net"
-	"os"
 
 	"bitbucket.org/evolutek/cellaserv2-protobuf"
 	"github.com/evolutek/cellaserv3/common"
@@ -116,7 +115,9 @@ func handleListEvents(conn net.Conn, req *cellaserv.Request) {
 // handleShutdown quits cellaserv. Used for debug purposes
 func handleShutdown() {
 	stopProfiling()
-	os.Exit(0)
+	if err := mainListener.Close(); err != nil {
+		log.Error("Could not close connection: %s", err)
+	}
 }
 
 // handleSpy registers the connection as a spy of a service

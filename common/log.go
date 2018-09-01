@@ -18,7 +18,7 @@ var (
 	// Command line flags
 	logRootDirectory = flag.String("log-root", ".", "root directory of logs")
 	logSubDir        string
-	logLevelFlag     = flag.String("log-level", "0", "logger verbosity (0 = WARNING, 1 = INFO, 2 = DEBUG)")
+	logLevelFlag     = flag.String("log-level", "2", "logger verbosity (0 = WARNING, 1 = INFO, 2 = DEBUG)")
 	logToFile        = flag.String("log-file", "", "log to custom file instead of stderr")
 
 	// Map of the logger associated with a service

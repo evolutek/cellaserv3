@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"time"
 
 	"bitbucket.org/evolutek/cellaserv2-protobuf"
 	"github.com/evolutek/cellaserv3/common"
@@ -19,7 +20,11 @@ var (
 	// Command line flags
 	sockAddrListen = flag.String("listen-addr", ":4200", "listening address of the server")
 
+	// Main logger
 	log *logging.Logger
+
+	// Socket where all incoming connections go
+	mainListener net.Listener
 
 	// List of all currently handled connections
 	connList *list.List
@@ -81,7 +86,9 @@ func handle(conn net.Conn) {
 		// Close connections that spied this service
 		for _, c := range s.Spies {
 			log.Debug("[Service] Close spy conn: %s", connDescribe(c))
-			c.Close()
+			if err := c.Close(); err != nil {
+				log.Error("Could not close connection:", err)
+			}
 		}
 	}
 	delete(servicesConn, conn)
@@ -227,7 +234,7 @@ func setup() {
 	subscriberMatchMap = make(map[string][]net.Conn)
 	connList = list.New()
 
-	// Enable CPU profiling, stopped when cellaserv receive the kill request
+	// Configure CPU profiling, stopped when cellaserv receive the kill request
 	setupProfiling()
 }
 
@@ -235,20 +242,28 @@ func setup() {
 func Serve() {
 	setup()
 
-	ln, err := net.Listen("tcp", *sockAddrListen)
+	var err error
+	mainListener, err = net.Listen("tcp", *sockAddrListen)
 	if err != nil {
 		log.Error("[Net] Could not listen: %s", err)
 		return
 	}
-	defer ln.Close()
+	defer mainListener.Close()
 
 	log.Info("[Net] Listening on %s", *sockAddrListen)
 
 	for {
-		conn, err := ln.Accept()
-		if err != nil {
-			log.Error("[Net] Could not accept: %s", err)
-			continue
+		conn, err := mainListener.Accept()
+		nerr, ok := err.(net.Error)
+		if ok {
+			if nerr.Temporary() {
+				log.Error("[Net] Could not accept: %s", err)
+				time.Sleep(1)
+				continue
+			} else {
+				log.Info("[Net] Connection unavailable: %s", err)
+				break
+			}
 		}
 
 		go handle(conn)
