@@ -1,10 +1,11 @@
 package broker
 
 import (
-	"bitbucket.org/evolutek/cellaserv2-protobuf"
 	"net"
 	"path/filepath"
 	"strings"
+
+	"bitbucket.org/evolutek/cellaserv2-protobuf"
 )
 
 func handlePublish(conn net.Conn, msgBytes []byte, pub *cellaserv.Publish) {
@@ -38,9 +39,6 @@ func doPublish(msgBytes []byte, pub *cellaserv.Publish) {
 
 	for _, connSub := range subs {
 		log.Debug("[Publish] Forwarding publish to %s", connDescribe(connSub))
-		dumpOutgoing(connSub, msgBytes)
 		sendRawMessage(connSub, msgBytes)
 	}
 }
-
-// vim: set nowrap tw=100 noet sw=8:

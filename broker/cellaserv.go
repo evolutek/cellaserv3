@@ -48,8 +48,8 @@ func handleDescribeConn(conn net.Conn, req *cellaserv.Request) {
 	connNameMap[conn] = data.Name
 	newName := connDescribe(conn)
 
-	pub_json, _ := json.Marshal(connNameJSON{conn.RemoteAddr().String(), newName})
-	cellaservPublish(logConnRename, pub_json)
+	pubJSON, _ := json.Marshal(connNameJSON{conn.RemoteAddr().String(), newName})
+	cellaservPublish(logConnRename, pubJSON)
 
 	log.Debug("[Cellaserv] Describe %s as %s", conn.RemoteAddr(), data.Name)
 
@@ -59,7 +59,7 @@ func handleDescribeConn(conn net.Conn, req *cellaserv.Request) {
 func handleListServices(conn net.Conn, req *cellaserv.Request) {
 	// Fix static empty slice that is "null" in JSON
 	// A dynamic empty slice is []
-	servicesList := make([]*ServiceJSON, 0)
+	servicesList := make([]*serviceJSON, 0)
 	for _, names := range services {
 		for _, s := range names {
 			servicesList = append(servicesList, s.JSONStruct())

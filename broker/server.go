@@ -28,16 +28,16 @@ var (
 	connNameMap map[net.Conn]string
 
 	// Map a connection to the service it spies
-	connSpies map[net.Conn][]*Service
+	connSpies map[net.Conn][]*service
 
 	// Map of currently connected services by name, then identification
-	services map[string]map[string]*Service
+	services map[string]map[string]*service
 
 	// Map of all services associated with a connection
-	servicesConn map[net.Conn][]*Service
+	servicesConn map[net.Conn][]*service
 
 	// Map of requests ids with associated timeout timer
-	reqIds             map[uint64]*RequestTracking
+	reqIds             map[uint64]*requestTracking
 	subscriberMap      map[string][]net.Conn
 	subscriberMatchMap map[string][]net.Conn
 )
@@ -46,8 +46,8 @@ var (
 func handle(conn net.Conn) {
 	log.Info("[Net] Connection opened: %s", connDescribe(conn))
 
-	connJson := connToJson(conn)
-	cellaservPublish(logNewConnection, connJson)
+	connJSON := connToJSON(conn)
+	cellaservPublish(logNewConnection, connJSON)
 
 	// Append to list of handled connections
 	connListElt := connList.PushBack(conn)
@@ -74,8 +74,8 @@ func handle(conn net.Conn) {
 	// TODO: notify goroutines waiting for acks for this service
 	for _, s := range servicesConn[conn] {
 		log.Info("[Services] Remove %s", s)
-		pub_json, _ := json.Marshal(s.JSONStruct())
-		cellaservPublish(logLostService, pub_json)
+		pubJSON, _ := json.Marshal(s.JSONStruct())
+		cellaservPublish(logLostService, pubJSON)
 		delete(services[s.Name], s.Identification)
 
 		// Close connections that spied this service
@@ -95,9 +95,9 @@ func handle(conn net.Conn) {
 					subs[i] = subs[len(subs)-1]
 					subMap[key] = subs[:len(subs)-1]
 
-					pub_json, _ := json.Marshal(
-						LogSubscriberJSON{key, connDescribe(conn)})
-					cellaservPublish(logLostSubscriber, pub_json)
+					pubJSON, _ := json.Marshal(
+						logSubscriberJSON{key, connDescribe(conn)})
+					cellaservPublish(logLostSubscriber, pubJSON)
 
 					if len(subMap[key]) == 0 {
 						delete(subMap, key)
@@ -123,7 +123,7 @@ func handle(conn net.Conn) {
 	}
 	delete(connSpies, conn)
 
-	cellaservPublish(logCloseConnection, connJson)
+	cellaservPublish(logCloseConnection, connJSON)
 }
 
 func logUnmarshalError(msg []byte) {
@@ -154,9 +154,6 @@ func handleMessage(conn net.Conn) (bool, error) {
 	if err != nil {
 		return true, fmt.Errorf("Could not read message: %s", err)
 	}
-
-	// Dump raw msg to log
-	dumpIncoming(conn, msgBytes)
 
 	msg := &cellaserv.Message{}
 	err = proto.Unmarshal(msgBytes, msg)
@@ -222,25 +219,19 @@ func setup() {
 
 	// Initialize our maps
 	connNameMap = make(map[net.Conn]string)
-	connSpies = make(map[net.Conn][]*Service)
-	services = make(map[string]map[string]*Service)
-	servicesConn = make(map[net.Conn][]*Service)
-	reqIds = make(map[uint64]*RequestTracking)
+	connSpies = make(map[net.Conn][]*service)
+	services = make(map[string]map[string]*service)
+	servicesConn = make(map[net.Conn][]*service)
+	reqIds = make(map[uint64]*requestTracking)
 	subscriberMap = make(map[string][]net.Conn)
 	subscriberMatchMap = make(map[string][]net.Conn)
 	connList = list.New()
 
 	// Enable CPU profiling, stopped when cellaserv receive the kill request
 	setupProfiling()
-
-	// Setup pcap dumping of all packets
-	err := dumpSetup()
-	if err != nil {
-		log.Error("Could not setup dump: %s", err)
-	}
 }
 
-// Start listening and receiving connections
+// Serve cellaserv
 func Serve() {
 	setup()
 

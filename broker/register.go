@@ -1,28 +1,28 @@
 package broker
 
 import (
-	"bitbucket.org/evolutek/cellaserv2-protobuf"
 	"encoding/json"
 	"net"
+
+	"bitbucket.org/evolutek/cellaserv2-protobuf"
 )
 
-// Add service to service map
+// Add service to services map
 func handleRegister(conn net.Conn, msg *cellaserv.Register) {
 	name := msg.GetName()
 	ident := msg.GetIdentification()
-	service := newService(conn, name, ident)
 	log.Info("[Services] New %s/%s", name, ident)
 
 	if _, ok := services[name]; !ok {
-		services[name] = make(map[string]*Service)
+		services[name] = make(map[string]*service)
 	}
 
 	// Check for duplicate services
 	if s, ok := services[name][ident]; ok {
 		log.Warning("[Services] Replace %s", s)
 
-		pub_json, _ := json.Marshal(s.JSONStruct())
-		cellaservPublish(logLostService, pub_json)
+		pubJSON, _ := json.Marshal(s.JSONStruct())
+		cellaservPublish(logLostService, pubJSON)
 
 		sc := servicesConn[s.Conn]
 		for i, ss := range sc {
@@ -52,18 +52,18 @@ func handleRegister(conn net.Conn, msg *cellaserv.Register) {
 		}
 	}
 
+	registeredService := newService(conn, name, ident)
+
 	// This makes all requests go to the new service
-	services[name][ident] = service
+	services[name][ident] = registeredService
 
 	// Keep track of origin connection in order to remove when the connection is closed
-	servicesConn[conn] = append(servicesConn[conn], service)
+	servicesConn[conn] = append(servicesConn[conn], registeredService)
 
 	// Publish new service data
-	pub_json, _ := json.Marshal(service.JSONStruct())
-	cellaservPublish(logNewService, pub_json)
+	pubJSON, _ := json.Marshal(registeredService.JSONStruct())
+	cellaservPublish(logNewService, pubJSON)
 
-	pub_json, _ = json.Marshal(connNameJSON{conn.RemoteAddr().String(), connDescribe(conn)})
-	cellaservPublish(logConnRename, pub_json)
+	pubJSON, _ = json.Marshal(connNameJSON{conn.RemoteAddr().String(), connDescribe(conn)})
+	cellaservPublish(logConnRename, pubJSON)
 }
-
-// vim: set nowrap tw=100 noet sw=8:

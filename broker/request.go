@@ -1,12 +1,13 @@
 package broker
 
 import (
-	"bitbucket.org/evolutek/cellaserv2-protobuf"
 	"net"
 	"time"
+
+	"bitbucket.org/evolutek/cellaserv2-protobuf"
 )
 
-type RequestTracking struct {
+type requestTracking struct {
 	sender net.Conn
 	timer  *time.Timer
 	spies  []net.Conn
@@ -39,7 +40,7 @@ func handleRequest(conn net.Conn, msgRaw []byte, req *cellaserv.Request) {
 		sendReplyError(conn, req, cellaserv.Reply_Error_NoSuchService)
 		return
 	}
-	var srvc *Service
+	var srvc *service
 	if ident != nil {
 		srvc, ok = idents[*ident]
 		if !ok {
@@ -69,7 +70,7 @@ func handleRequest(conn net.Conn, msgRaw []byte, req *cellaserv.Request) {
 	timer := time.AfterFunc(5*time.Second, handleTimeout)
 
 	// The ID is used to track the sender of the request
-	reqIds[*id] = &RequestTracking{conn, timer, srvc.Spies}
+	reqIds[*id] = &requestTracking{conn, timer, srvc.Spies}
 
 	srvc.sendMessage(msgRaw)
 
@@ -78,5 +79,3 @@ func handleRequest(conn net.Conn, msgRaw []byte, req *cellaserv.Request) {
 		sendRawMessage(spy, msgRaw)
 	}
 }
-
-// vim: set nowrap tw=100 noet sw=8:

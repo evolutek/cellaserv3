@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-type LogSubscriberJSON struct {
+type logSubscriberJSON struct {
 	Event   string
 	SubAddr string
 }
@@ -20,8 +20,6 @@ func handleSubscribe(conn net.Conn, sub *cellaserv.Subscribe) {
 		subscriberMap[*sub.Event] = append(subscriberMap[*sub.Event], conn)
 	}
 
-	pub_json, _ := json.Marshal(LogSubscriberJSON{*sub.Event, conn.RemoteAddr().String()})
-	cellaservPublish(logNewSubscriber, pub_json)
+	pubJSON, _ := json.Marshal(logSubscriberJSON{*sub.Event, conn.RemoteAddr().String()})
+	cellaservPublish(logNewSubscriber, pubJSON)
 }
-
-// vim: set nowrap tw=100 noet sw=8:

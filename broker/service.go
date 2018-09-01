@@ -2,25 +2,25 @@ package broker
 
 import "net"
 
-type Service struct {
+type service struct {
 	Conn           net.Conn
 	Name           string
 	Identification string
 	Spies          []net.Conn
 }
 
-type ServiceJSON struct {
+type serviceJSON struct {
 	Addr           string
 	Name           string
 	Identification string
 }
 
-func newService(conn net.Conn, name string, ident string) *Service {
-	s := &Service{conn, name, ident, nil}
+func newService(conn net.Conn, name string, ident string) *service {
+	s := &service{conn, name, ident, nil}
 	return s
 }
 
-func (s *Service) String() string {
+func (s *service) String() string {
 	if s.Identification != "" {
 		return s.Name + "/" + s.Identification
 	}
@@ -28,16 +28,14 @@ func (s *Service) String() string {
 }
 
 // JSONStruct creates a struc good for JSON encoding.
-func (s *Service) JSONStruct() *ServiceJSON {
-	return &ServiceJSON{
+func (s *service) JSONStruct() *serviceJSON {
+	return &serviceJSON{
 		Addr:           s.Conn.RemoteAddr().String(),
 		Name:           s.Name,
 		Identification: s.Identification,
 	}
 }
 
-func (s *Service) sendMessage(msg []byte) {
+func (s *service) sendMessage(msg []byte) {
 	sendRawMessage(s.Conn, msg)
 }
-
-// vim: set nowrap tw=100 noet sw=8:

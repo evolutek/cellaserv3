@@ -25,5 +25,3 @@ func handleReply(conn net.Conn, msgRaw []byte, rep *cellaserv.Reply) {
 	log.Debug("[Reply] Forwarding to %s", reqTrack.sender.RemoteAddr())
 	sendRawMessage(reqTrack.sender, msgRaw)
 }
-
-// vim: set nowrap tw=100 noet sw=8:
