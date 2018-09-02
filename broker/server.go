@@ -59,7 +59,7 @@ func handle(conn net.Conn) {
 
 	// Handle all messages received on this connection
 	for {
-		closed, err := handleMessage(conn)
+		closed, err := handleMessageInConn(conn)
 		if err != nil {
 			log.Error("[Message] %s", err)
 		}
@@ -141,7 +141,7 @@ func logUnmarshalError(msg []byte) {
 	log.Error("[Net] Bad message: %s", dbg)
 }
 
-func handleMessage(conn net.Conn) (bool, error) {
+func handleMessageInConn(conn net.Conn) (bool, error) {
 	// Read message length as uint32
 	var msgLen uint32
 	err := binary.Read(conn, binary.BigEndian, &msgLen)
@@ -152,23 +152,31 @@ func handleMessage(conn net.Conn) (bool, error) {
 		return true, fmt.Errorf("Could not read message length: %s", err)
 	}
 
-	if msgLen > 8*1024*1024 {
-		return false, fmt.Errorf("Request too big: %d", msgLen)
+	const maxMessageSize = 8 * 1024 * 1024
+	if msgLen > maxMessageSize {
+		return false, fmt.Errorf("Message size too big: %d, max size: %d", msgLen, maxMessageSize)
 	}
 
+	// Extract message from connection
 	msgBytes := make([]byte, msgLen)
 	_, err = conn.Read(msgBytes)
 	if err != nil {
 		return true, fmt.Errorf("Could not read message: %s", err)
 	}
 
+	return handleMessage(conn, msgBytes)
+}
+
+func handleMessage(conn net.Conn, msgBytes []byte) (bool, error) {
+	// Parse message header
 	msg := &cellaserv.Message{}
-	err = proto.Unmarshal(msgBytes, msg)
+	err := proto.Unmarshal(msgBytes, msg)
 	if err != nil {
 		logUnmarshalError(msgBytes)
 		return false, fmt.Errorf("Could not unmarshal message: %s", err)
 	}
 
+	// Parse and process message payload
 	switch *msg.Type {
 	case cellaserv.Message_Register:
 		register := &cellaserv.Register{}
@@ -242,26 +250,27 @@ func setup() {
 func Serve() {
 	setup()
 
+	// Create TCP listenener for incoming connections
 	var err error
 	mainListener, err = net.Listen("tcp", *sockAddrListen)
 	if err != nil {
 		log.Error("[Net] Could not listen: %s", err)
 		return
 	}
-	defer mainListener.Close()
 
 	log.Info("[Net] Listening on %s", *sockAddrListen)
 
+	// Handle new connections
 	for {
 		conn, err := mainListener.Accept()
 		nerr, ok := err.(net.Error)
 		if ok {
 			if nerr.Temporary() {
-				log.Error("[Net] Could not accept: %s", err)
+				log.Warning("[Net] Could not accept: %s", err)
 				time.Sleep(1)
 				continue
 			} else {
-				log.Info("[Net] Connection unavailable: %s", err)
+				log.Error("[Net] Connection unavailable: %s", err)
 				break
 			}
 		}

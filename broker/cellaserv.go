@@ -114,6 +114,8 @@ func handleListEvents(conn net.Conn, req *cellaserv.Request) {
 
 // handleShutdown quits cellaserv. Used for debug purposes
 func handleShutdown() {
+	log.Info("[Cellaserv] Shutting down.")
+
 	stopProfiling()
 	if err := mainListener.Close(); err != nil {
 		log.Error("Could not close connection: %s", err)
