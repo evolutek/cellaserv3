@@ -1,4 +1,3 @@
-// TODO: refactor to use oklog
 package common
 
 import (
@@ -19,10 +18,10 @@ var (
 	logRootDirectory = flag.String("log-root", ".", "root directory of logs")
 	logSubDir        string
 	logLevelFlag     = flag.String("log-level", "2", "logger verbosity (0 = WARNING, 1 = INFO, 2 = DEBUG)")
-	logToFile        = flag.String("log-file", "", "log to custom file instead of stderr")
+	logToFile        = flag.String("log-file", "", "log to file instead of stderr")
 
 	// Map of the logger associated with a service
-	servicesLogs map[string]*golog.Logger
+	loggers map[string]*golog.Logger
 )
 
 func getLogLevel() logging.Level {
@@ -40,6 +39,7 @@ func getLogLevel() logging.Level {
 	return logging.WARNING
 }
 
+// LogSetup configures the loggging subsystem. Returns the name of the logging directory
 func LogSetup() {
 	if log != nil {
 		log.Error("Logs are already initialized.")
@@ -70,55 +70,58 @@ func LogSetup() {
 	log = logging.MustGetLogger("cellaserv")
 
 	logging.SetLevel(getLogLevel(), "cellaserv")
-	// Set default log subDirectory to now
+	// Set default log directory to now
 	logRotateTimeNow()
 }
 
-// logRotateName set the new log subdirectory to name
+// logRotateName changes the log directory
 func logRotateName(name string) {
-	log.Debug("[Log] Rotating to \"%s\"", name)
+	log.Debug("[Log] Writing new logs to: %s", name)
 	logSubDir = name
 	logFullDir := path.Join(*logRootDirectory, logSubDir)
 	err := os.MkdirAll(logFullDir, 0755)
 	if err != nil {
-		log.Error("[Log] Could not create log directories, %s: %s", logFullDir, err)
+		log.Error("[Log] Could not create log directory, %s: %s", logFullDir, err)
 	}
 	// XXX: close old log files?
-	servicesLogs = make(map[string]*golog.Logger)
+	loggers = make(map[string]*golog.Logger)
 }
 
-// logRotateTimeNow switch the current log subdirectory to current time
+// logRotateTimeNow switches the current log directory to a new one, named
+// after the current time and date.
 func logRotateTimeNow() {
 	now := time.Now()
 	newSubDir := now.Format(time.Stamp)
 	logRotateName(newSubDir)
 }
 
-func logSetupFile(what string) (l *golog.Logger) {
-	l, ok := servicesLogs[what]
-	if !ok {
-		logFilename := path.Join(*logRootDirectory, logSubDir, what+".log")
+// logSetupFile opens a log file by name
+func logSetupFile(logName string) *golog.Logger {
+	logger, found := loggers[logName]
+	if !found {
+		logFilename := path.Join(*logRootDirectory, logSubDir, logName+".log")
 		logFd, err := os.OpenFile(logFilename, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
 		if err != nil {
 			log.Error("[Log] Could not create log file: %s", logFilename)
-			return
+			return nil
 		}
-		l = golog.New(logFd, what, golog.LstdFlags)
-		l.SetPrefix("")
-		servicesLogs[what] = l
+		logger = golog.New(logFd, logName, golog.LstdFlags)
+		logger.SetPrefix("")
+		loggers[logName] = logger
 	}
-	return
+	return logger
 }
 
-func LogEvent(event string, what string) {
-	logger, ok := servicesLogs[event]
-	if !ok {
+// LogEvent writes a log entry to one of the event logs
+func LogEvent(event string, msg string) {
+	logger, found := loggers[event]
+	if !found {
 		logger = logSetupFile(event)
 		if logger == nil {
 			return
 		}
 	}
-	logger.Println(what)
+	logger.Println(msg)
 }
 
 func GetLog() *logging.Logger {

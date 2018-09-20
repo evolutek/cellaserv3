@@ -9,6 +9,15 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
+func makeMessage(t *testing.T, msgType cellaserv.Message_MessageType, msgContent proto.Message) []byte {
+	msgContentBytes, err := proto.Marshal(msgContent)
+	if err != nil {
+		t.Fatal("Protobuf marshalling error: ", err)
+	}
+	msg := &cellaserv.Message{Type: &msgType, Content: msgContentBytes}
+	return MessageForNetwork(t, msg)
+}
+
 func MessageForNetwork(t *testing.T, msg *cellaserv.Message) []byte {
 	msgBytes, err := proto.Marshal(msg)
 	if err != nil {
@@ -26,18 +35,28 @@ func MessageForNetwork(t *testing.T, msg *cellaserv.Message) []byte {
 	return buf.Bytes()
 }
 
-func MakeMessageRegister(t *testing.T, serviceName string) []byte {
+func MakeMessageRegister(t *testing.T, serviceName string, serviceIdent string) []byte {
 	msgType := cellaserv.Message_Register
-	msgContent := &cellaserv.Register{Name: &serviceName}
-	msgContentBytes, _ := proto.Marshal(msgContent)
-	msg := &cellaserv.Message{Type: &msgType, Content: msgContentBytes}
-	return MessageForNetwork(t, msg)
+	msgContent := &cellaserv.Register{
+		Name:           &serviceName,
+		Identification: &serviceIdent,
+	}
+	return makeMessage(t, msgType, msgContent)
 }
 
 func MakeMessagePublish(t *testing.T, topic string) []byte {
 	msgType := cellaserv.Message_Publish
 	msgContent := &cellaserv.Publish{Event: &topic}
-	msgContentBytes, _ := proto.Marshal(msgContent)
-	msg := &cellaserv.Message{Type: &msgType, Content: msgContentBytes}
-	return MessageForNetwork(t, msg)
+	return makeMessage(t, msgType, msgContent)
+}
+
+func MakeMessageRequest(t *testing.T, service string, ident string, method string, payload []byte) []byte {
+	msgType := cellaserv.Message_Request
+	msgContent := &cellaserv.Request{
+		ServiceIdentification: &ident,
+		ServiceName:           &service,
+		Method:                &method,
+		Data:                  payload,
+	}
+	return makeMessage(t, msgType, msgContent)
 }

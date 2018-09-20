@@ -14,7 +14,8 @@ import (
 
 var (
 	// Command line flags
-	versionFlag = flag.Bool("version", false, "output version information and exit")
+	versionFlag        = flag.Bool("version", false, "output version information and exit")
+	sockAddrListenFlag = flag.String("listen-addr", ":4200", "listening address of the server")
 )
 
 func versionAndDie() {
@@ -32,5 +33,5 @@ func main() {
 
 	common.LogSetup()
 
-	broker.Serve()
+	broker.ListenAndServe(*sockAddrListenFlag)
 }

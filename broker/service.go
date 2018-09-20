@@ -37,5 +37,5 @@ func (s *service) JSONStruct() *serviceJSON {
 }
 
 func (s *service) sendMessage(msg []byte) {
-	sendRawMessage(s.Conn, msg)
+	sendMessageBytes(s.Conn, msg)
 }

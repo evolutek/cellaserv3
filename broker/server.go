@@ -4,7 +4,6 @@ import (
 	"container/list"
 	"encoding/binary"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"net"
@@ -17,9 +16,6 @@ import (
 )
 
 var (
-	// Command line flags
-	sockAddrListen = flag.String("listen-addr", ":4200", "listening address of the server")
-
 	// Main logger
 	log *logging.Logger
 
@@ -246,19 +242,19 @@ func setup() {
 	setupProfiling()
 }
 
-// Serve cellaserv
-func Serve() {
+// ListenAndServe starts the cellaserv broker
+func ListenAndServe(sockAddrListen string) {
 	setup()
 
 	// Create TCP listenener for incoming connections
 	var err error
-	mainListener, err = net.Listen("tcp", *sockAddrListen)
+	mainListener, err = net.Listen("tcp", sockAddrListen)
 	if err != nil {
 		log.Error("[Net] Could not listen: %s", err)
 		return
 	}
 
-	log.Info("[Net] Listening on %s", *sockAddrListen)
+	log.Info("[Net] Listening on %s", sockAddrListen)
 
 	// Handle new connections
 	for {

@@ -78,10 +78,10 @@ func sendMessage(conn net.Conn, msg *cellaserv.Message) {
 		log.Error("[Message] Could not marshal outgoing message")
 	}
 
-	sendRawMessage(conn, msgBytes)
+	sendMessageBytes(conn, msgBytes)
 }
 
-func sendRawMessage(conn net.Conn, msg []byte) {
+func sendMessageBytes(conn net.Conn, msg []byte) {
 	// Create temporary buffer
 	var buf bytes.Buffer
 	// Write the size of the message...

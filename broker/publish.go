@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"bitbucket.org/evolutek/cellaserv2-protobuf"
+	"github.com/evolutek/cellaserv3/common"
 )
 
 func handlePublish(conn net.Conn, msgBytes []byte, pub *cellaserv.Publish) {
@@ -21,9 +22,15 @@ func doPublish(msgBytes []byte, pub *cellaserv.Publish) {
 
 	// Handle log publishes
 	if strings.HasPrefix(event, "log.") {
-		cellaservLog(pub)
+		var data string
+		if pub.Data != nil {
+			data = string(pub.Data)
+		}
+		event := (*pub.Event)[4:] // Strip 'log.' prefix
+		common.LogEvent(event, data)
 	}
 
+	// Holds subscribers for this publish
 	var subs []net.Conn
 
 	// Handle glob susbscribers
@@ -39,6 +46,6 @@ func doPublish(msgBytes []byte, pub *cellaserv.Publish) {
 
 	for _, connSub := range subs {
 		log.Debug("[Publish] Forwarding publish to %s", connDescribe(connSub))
-		sendRawMessage(connSub, msgBytes)
+		sendMessageBytes(connSub, msgBytes)
 	}
 }

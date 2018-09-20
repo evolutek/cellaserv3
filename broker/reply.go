@@ -18,10 +18,10 @@ func handleReply(conn net.Conn, msgRaw []byte, rep *cellaserv.Reply) {
 
 	// Forward reply to spies
 	for _, spy := range reqTrack.spies {
-		sendRawMessage(spy, msgRaw)
+		sendMessageBytes(spy, msgRaw)
 	}
 
 	reqTrack.timer.Stop()
 	log.Debug("[Reply] Forwarding to %s", reqTrack.sender.RemoteAddr())
-	sendRawMessage(reqTrack.sender, msgRaw)
+	sendMessageBytes(reqTrack.sender, msgRaw)
 }

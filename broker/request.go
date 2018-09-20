@@ -76,6 +76,6 @@ func handleRequest(conn net.Conn, msgRaw []byte, req *cellaserv.Request) {
 
 	// Forward message to the spies of this service
 	for _, spy := range srvc.Spies {
-		sendRawMessage(spy, msgRaw)
+		sendMessageBytes(spy, msgRaw)
 	}
 }

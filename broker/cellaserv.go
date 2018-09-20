@@ -27,12 +27,12 @@ type connNameJSON struct {
 	Name string
 }
 
-/*
-handleDescribeConn attaches a name to the connection that sent the request.
-
-This information is normaly given when a service registers, but it can also be useful for other
-clients.
-*/
+// handleDescribeConn attaches a name to the connection that sent the request.
+//
+// The name of the connection is normally given when a service registers.
+// Connections that want to be named too can use this command to do so.
+//
+// Request payload format: {"name" : string}
 func handleDescribeConn(conn net.Conn, req *cellaserv.Request) {
 	var data struct {
 		Name string
@@ -112,7 +112,7 @@ func handleListEvents(conn net.Conn, req *cellaserv.Request) {
 	sendReply(conn, req, data)
 }
 
-// handleShutdown quits cellaserv. Used for debug purposes
+// handleShutdown quits cellaserv. Used for debug purposes.
 func handleShutdown() {
 	log.Info("[Cellaserv] Shutting down.")
 
@@ -164,6 +164,7 @@ func handleVersion(conn net.Conn, req *cellaserv.Request) {
 	sendReply(conn, req, data)
 }
 
+// cellaservRequest dispatches requests for cellaserv.
 func cellaservRequest(conn net.Conn, req *cellaserv.Request) {
 	switch *req.Method {
 	case "describe-conn", "describe_conn":
@@ -183,16 +184,6 @@ func cellaservRequest(conn net.Conn, req *cellaserv.Request) {
 	default:
 		sendReplyError(conn, req, cellaserv.Reply_Error_NoSuchMethod)
 	}
-}
-
-// cellaservLog logs a publish message to a file
-func cellaservLog(pub *cellaserv.Publish) {
-	var data string
-	if pub.Data != nil {
-		data = string(pub.Data)
-	}
-	event := (*pub.Event)[4:] // Strip 'log.'
-	common.LogEvent(event, data)
 }
 
 // cellaservPublish sends a publish message from cellaserv

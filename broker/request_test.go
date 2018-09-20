@@ -6,14 +6,16 @@ import (
 	"github.com/evolutek/cellaserv3/testutil"
 )
 
-func TestPublishNoSubscriber(t *testing.T) {
+func TestRequestNoService(t *testing.T) {
 	go func() {
 		conn := testutil.Dial(t)
 		defer conn.Close()
 
-		const topic = "test"
-		conn.Write(testutil.MakeMessagePublish(t, topic))
+		payload := []byte{}
+		msg := testutil.MakeMessageRequest(t, "foo", "bar", "lol", payload)
+		conn.Write(msg)
 
+		// Cleanup
 		handleShutdown()
 	}()
 
