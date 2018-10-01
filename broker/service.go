@@ -1,6 +1,10 @@
 package broker
 
-import "net"
+import (
+	"net"
+
+	"github.com/evolutek/cellaserv3/common"
+)
 
 type service struct {
 	Conn           net.Conn
@@ -37,5 +41,5 @@ func (s *service) JSONStruct() *serviceJSON {
 }
 
 func (s *service) sendMessage(msg []byte) {
-	sendMessageBytes(s.Conn, msg)
+	common.SendRawMessage(s.Conn, msg)
 }

@@ -1,13 +1,12 @@
 package broker
 
 import (
-	"bytes"
-	"encoding/binary"
 	"encoding/json"
 	"net"
 	"strings"
 
 	"bitbucket.org/evolutek/cellaserv2-protobuf"
+	"github.com/evolutek/cellaserv3/common"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -53,7 +52,7 @@ func sendReply(conn net.Conn, req *cellaserv.Request, data []byte) {
 	msgType := cellaserv.Message_Reply
 	msg := &cellaserv.Message{Type: &msgType, Content: repBytes}
 
-	sendMessage(conn, msg)
+	common.SendMessage(conn, msg)
 }
 
 func sendReplyError(conn net.Conn, req *cellaserv.Request, errType cellaserv.Reply_Error_Type) {
@@ -67,32 +66,5 @@ func sendReplyError(conn net.Conn, req *cellaserv.Request, errType cellaserv.Rep
 		Type:    &msgType,
 		Content: replyBytes,
 	}
-	sendMessage(conn, msg)
-}
-
-func sendMessage(conn net.Conn, msg *cellaserv.Message) {
-	log.Debug("[Net] Sending message to %s", conn.RemoteAddr())
-
-	msgBytes, err := proto.Marshal(msg)
-	if err != nil {
-		log.Error("[Message] Could not marshal outgoing message")
-	}
-
-	sendMessageBytes(conn, msgBytes)
-}
-
-func sendMessageBytes(conn net.Conn, msg []byte) {
-	// Create temporary buffer
-	var buf bytes.Buffer
-	// Write the size of the message...
-	if err := binary.Write(&buf, binary.BigEndian, uint32(len(msg))); err != nil {
-		log.Error("Could not write message to buffer:", err)
-	}
-	// ...concatenate with message content
-	buf.Write(msg)
-	// Send the whole message at once (avoid race condition)
-	// Any IO error will be detected by the main loop trying to read from the conn
-	if _, err := conn.Write(buf.Bytes()); err != nil {
-		log.Error("Could not write message to connection:", err)
-	}
+	common.SendMessage(conn, msg)
 }

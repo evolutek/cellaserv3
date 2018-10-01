@@ -37,7 +37,7 @@ func TestRegister(t *testing.T) {
 		handleShutdown()
 	}()
 
-	ListenAndServe(":4200")
+	listenAndServeForTest(t)
 }
 
 func TestRegisterReplace(t *testing.T) {
@@ -70,5 +70,5 @@ func TestRegisterReplace(t *testing.T) {
 		handleShutdown()
 	}()
 
-	ListenAndServe(":4200")
+	listenAndServeForTest(t)
 }

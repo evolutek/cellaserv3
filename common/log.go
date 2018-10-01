@@ -19,8 +19,9 @@ var (
 	logSubDir        string
 	logLevelFlag     = flag.String("log-level", "2", "logger verbosity (0 = WARNING, 1 = INFO, 2 = DEBUG)")
 	logToFile        = flag.String("log-file", "", "log to file instead of stderr")
+	logPersistent    = flag.Bool("log-persistent", false, "store log persistently")
 
-	// Map of the logger associated with a service
+	// Maps events to their dedicated loggers
 	loggers map[string]*golog.Logger
 )
 
@@ -42,7 +43,7 @@ func getLogLevel() logging.Level {
 // LogSetup configures the loggging subsystem. Returns the name of the logging directory
 func LogSetup() {
 	if log != nil {
-		log.Error("Logs are already initialized.")
+		log.Warning("Logs are already initialized.")
 		return
 	}
 
@@ -76,12 +77,14 @@ func LogSetup() {
 
 // logRotateName changes the log directory
 func logRotateName(name string) {
-	log.Debug("[Log] Writing new logs to: %s", name)
-	logSubDir = name
-	logFullDir := path.Join(*logRootDirectory, logSubDir)
-	err := os.MkdirAll(logFullDir, 0755)
-	if err != nil {
-		log.Error("[Log] Could not create log directory, %s: %s", logFullDir, err)
+	if *logPersistent {
+		log.Debug("[Log] Writing new logs to: %s", name)
+		logSubDir = name
+		logFullDir := path.Join(*logRootDirectory, logSubDir)
+		err := os.MkdirAll(logFullDir, 0755)
+		if err != nil {
+			log.Error("[Log] Could not create log directory, %s: %s", logFullDir, err)
+		}
 	}
 	// XXX: close old log files?
 	loggers = make(map[string]*golog.Logger)
@@ -95,18 +98,22 @@ func logRotateTimeNow() {
 	logRotateName(newSubDir)
 }
 
-// logSetupFile opens a log file by name
-func logSetupFile(logName string) *golog.Logger {
+// loggerSetup setup and returns a new logger
+func loggerSetup(logName string) *golog.Logger {
 	logger, found := loggers[logName]
 	if !found {
-		logFilename := path.Join(*logRootDirectory, logSubDir, logName+".log")
-		logFd, err := os.OpenFile(logFilename, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
-		if err != nil {
-			log.Error("[Log] Could not create log file: %s", logFilename)
-			return nil
+		if *logPersistent {
+			logFilename := path.Join(*logRootDirectory, logSubDir, logName+".log")
+			logFd, err := os.OpenFile(logFilename, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
+			if err != nil {
+				log.Error("[Log] Could not create log file: %s", logFilename)
+				return nil
+			}
+			logger = golog.New(logFd, logName, golog.LstdFlags)
+			logger.SetPrefix("")
+		} else {
+			logger = golog.New(os.Stderr, logName, golog.LstdFlags)
 		}
-		logger = golog.New(logFd, logName, golog.LstdFlags)
-		logger.SetPrefix("")
 		loggers[logName] = logger
 	}
 	return logger
@@ -116,7 +123,7 @@ func logSetupFile(logName string) *golog.Logger {
 func LogEvent(event string, msg string) {
 	logger, found := loggers[event]
 	if !found {
-		logger = logSetupFile(event)
+		logger = loggerSetup(event)
 		if logger == nil {
 			return
 		}
@@ -125,5 +132,8 @@ func LogEvent(event string, msg string) {
 }
 
 func GetLog() *logging.Logger {
+	if log == nil {
+		LogSetup()
+	}
 	return log
 }

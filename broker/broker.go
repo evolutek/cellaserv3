@@ -2,14 +2,13 @@ package broker
 
 import (
 	"container/list"
-	"encoding/binary"
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net"
 	"time"
 
-	"bitbucket.org/evolutek/cellaserv2-protobuf"
+	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
 	"github.com/evolutek/cellaserv3/common"
 	"github.com/golang/protobuf/proto"
 	logging "gopkg.in/op/go-logging.v1"
@@ -43,6 +42,19 @@ var (
 	subscriberMatchMap map[string][]net.Conn
 )
 
+type Options struct {
+	ListenAddress string
+}
+
+type Broker struct {
+	logger *logging.Logger
+
+	Options *Options
+
+	// Map of currently connected services by name, then identification
+	Services map[string]map[string]*service
+}
+
 // Manage incoming connexions
 func handle(conn net.Conn) {
 	log.Info("[Net] Connection opened: %s", connDescribe(conn))
@@ -55,13 +67,17 @@ func handle(conn net.Conn) {
 
 	// Handle all messages received on this connection
 	for {
-		closed, err := handleMessageInConn(conn)
+		closed, msgBytes, msg, err := common.RecvMessage(conn)
 		if err != nil {
-			log.Error("[Message] %s", err)
+			log.Error("[Message] Receive: %s", err)
 		}
 		if closed {
 			log.Info("[Net] Connection closed: %s", connDescribe(conn))
 			break
+		}
+		err = handleMessage(conn, msgBytes, msg)
+		if err != nil {
+			log.Error("[Message] Handle: %s", err)
 		}
 	}
 
@@ -137,40 +153,8 @@ func logUnmarshalError(msg []byte) {
 	log.Error("[Net] Bad message: %s", dbg)
 }
 
-func handleMessageInConn(conn net.Conn) (bool, error) {
-	// Read message length as uint32
-	var msgLen uint32
-	err := binary.Read(conn, binary.BigEndian, &msgLen)
-	if err != nil {
-		if err == io.EOF {
-			return true, nil
-		}
-		return true, fmt.Errorf("Could not read message length: %s", err)
-	}
-
-	const maxMessageSize = 8 * 1024 * 1024
-	if msgLen > maxMessageSize {
-		return false, fmt.Errorf("Message size too big: %d, max size: %d", msgLen, maxMessageSize)
-	}
-
-	// Extract message from connection
-	msgBytes := make([]byte, msgLen)
-	_, err = conn.Read(msgBytes)
-	if err != nil {
-		return true, fmt.Errorf("Could not read message: %s", err)
-	}
-
-	return handleMessage(conn, msgBytes)
-}
-
-func handleMessage(conn net.Conn, msgBytes []byte) (bool, error) {
-	// Parse message header
-	msg := &cellaserv.Message{}
-	err := proto.Unmarshal(msgBytes, msg)
-	if err != nil {
-		logUnmarshalError(msgBytes)
-		return false, fmt.Errorf("Could not unmarshal message: %s", err)
-	}
+func handleMessage(conn net.Conn, msgBytes []byte, msg *cellaserv.Message) error {
+	var err error
 
 	// Parse and process message payload
 	switch *msg.Type {
@@ -179,48 +163,48 @@ func handleMessage(conn net.Conn, msgBytes []byte) (bool, error) {
 		err = proto.Unmarshal(msg.Content, register)
 		if err != nil {
 			logUnmarshalError(msg.Content)
-			return false, fmt.Errorf("Could not unmarshal register: %s", err)
+			return fmt.Errorf("Could not unmarshal register: %s", err)
 		}
 		handleRegister(conn, register)
-		return false, nil
+		return nil
 	case cellaserv.Message_Request:
 		request := &cellaserv.Request{}
 		err = proto.Unmarshal(msg.Content, request)
 		if err != nil {
 			logUnmarshalError(msg.Content)
-			return false, fmt.Errorf("Could not unmarshal request: %s", err)
+			return fmt.Errorf("Could not unmarshal request: %s", err)
 		}
 		handleRequest(conn, msgBytes, request)
-		return false, nil
+		return nil
 	case cellaserv.Message_Reply:
 		reply := &cellaserv.Reply{}
 		err = proto.Unmarshal(msg.Content, reply)
 		if err != nil {
 			logUnmarshalError(msg.Content)
-			return false, fmt.Errorf("Could not unmarshal reply: %s", err)
+			return fmt.Errorf("Could not unmarshal reply: %s", err)
 		}
 		handleReply(conn, msgBytes, reply)
-		return false, nil
+		return nil
 	case cellaserv.Message_Subscribe:
 		sub := &cellaserv.Subscribe{}
 		err = proto.Unmarshal(msg.Content, sub)
 		if err != nil {
 			logUnmarshalError(msg.Content)
-			return false, fmt.Errorf("Could not unmarshal subscribe: %s", err)
+			return fmt.Errorf("Could not unmarshal subscribe: %s", err)
 		}
 		handleSubscribe(conn, sub)
-		return false, nil
+		return nil
 	case cellaserv.Message_Publish:
 		pub := &cellaserv.Publish{}
 		err = proto.Unmarshal(msg.Content, pub)
 		if err != nil {
 			logUnmarshalError(msg.Content)
-			return false, fmt.Errorf("Could not unmarshal publish: %s", err)
+			return fmt.Errorf("Could not unmarshal publish: %s", err)
 		}
 		handlePublish(conn, msgBytes, pub)
-		return false, nil
+		return nil
 	default:
-		return false, fmt.Errorf("Unknown message type: %d", *msg.Type)
+		return fmt.Errorf("Unknown message type: %d", *msg.Type)
 	}
 }
 
@@ -243,7 +227,7 @@ func setup() {
 }
 
 // ListenAndServe starts the cellaserv broker
-func ListenAndServe(sockAddrListen string) {
+func ListenAndServe(sockAddrListen string) error {
 	setup()
 
 	// Create TCP listenener for incoming connections
@@ -251,7 +235,7 @@ func ListenAndServe(sockAddrListen string) {
 	mainListener, err = net.Listen("tcp", sockAddrListen)
 	if err != nil {
 		log.Error("[Net] Could not listen: %s", err)
-		return
+		return err
 	}
 
 	log.Info("[Net] Listening on %s", sockAddrListen)
@@ -272,5 +256,18 @@ func ListenAndServe(sockAddrListen string) {
 		}
 
 		go handle(conn)
+	}
+
+	return nil
+}
+
+func (b *Broker) Run(ctx context.Context) error {
+	return ListenAndServe(b.Options.ListenAddress)
+}
+
+func New(logger *logging.Logger, options *Options) *Broker {
+	return &Broker{
+		logger:  logger,
+		Options: options,
 	}
 }

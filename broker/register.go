@@ -57,10 +57,10 @@ func handleRegister(conn net.Conn, msg *cellaserv.Register) {
 	// This makes all requests go to the new service
 	services[name][ident] = registeredService
 
-	// Keep track of origin connection in order to remove when the connection is closed
+	// Keep track of origin connection in order to remove it when the connection is closed
 	servicesConn[conn] = append(servicesConn[conn], registeredService)
 
-	// Publish new service data
+	// Publish new service events
 	pubJSON, _ := json.Marshal(registeredService.JSONStruct())
 	cellaservPublish(logNewService, pubJSON)
 

@@ -122,6 +122,10 @@ func handleShutdown() {
 	}
 }
 
+func Shutdown() {
+	handleShutdown()
+}
+
 // handleSpy registers the connection as a spy of a service
 func handleSpy(conn net.Conn, req *cellaserv.Request) {
 	var data struct {

@@ -2,6 +2,7 @@ package broker
 
 import (
 	"testing"
+	"time"
 
 	"github.com/evolutek/cellaserv3/testutil"
 )
@@ -14,8 +15,10 @@ func TestPublishNoSubscriber(t *testing.T) {
 		const topic = "test"
 		conn.Write(testutil.MakeMessagePublish(t, topic))
 
+		time.Sleep(50 * time.Millisecond)
+
 		handleShutdown()
 	}()
 
-	ListenAndServe(":4200")
+	listenAndServeForTest(t)
 }

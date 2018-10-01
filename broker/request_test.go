@@ -19,5 +19,5 @@ func TestRequestNoService(t *testing.T) {
 		handleShutdown()
 	}()
 
-	ListenAndServe(":4200")
+	listenAndServeForTest(t)
 }

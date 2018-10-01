@@ -1,8 +1,10 @@
 package broker
 
 import (
-	"bitbucket.org/evolutek/cellaserv2-protobuf"
 	"net"
+
+	"bitbucket.org/evolutek/cellaserv2-protobuf"
+	"github.com/evolutek/cellaserv3/common"
 )
 
 func handleReply(conn net.Conn, msgRaw []byte, rep *cellaserv.Reply) {
@@ -18,10 +20,10 @@ func handleReply(conn net.Conn, msgRaw []byte, rep *cellaserv.Reply) {
 
 	// Forward reply to spies
 	for _, spy := range reqTrack.spies {
-		sendMessageBytes(spy, msgRaw)
+		common.SendRawMessage(spy, msgRaw)
 	}
 
 	reqTrack.timer.Stop()
 	log.Debug("[Reply] Forwarding to %s", reqTrack.sender.RemoteAddr())
-	sendMessageBytes(reqTrack.sender, msgRaw)
+	common.SendRawMessage(reqTrack.sender, msgRaw)
 }
