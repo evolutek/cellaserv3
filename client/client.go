@@ -166,6 +166,8 @@ func (c *client) RegisterService(s *service) {
 	msgContentBytes, _ := proto.Marshal(msgContent)
 	msg := &cellaserv.Message{Type: &msgType, Content: msgContentBytes}
 	common.SendMessage(c.conn, msg)
+
+	log.Info("Service %s registered", s)
 }
 
 // NewConnection returns a Client instance connected to cellaserv or panics

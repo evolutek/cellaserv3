@@ -19,6 +19,13 @@ type service struct {
 	eventHandlers   map[string](EventHandlerFunc)
 }
 
+func (s *service) String() string {
+	if s.Identification != "" {
+		return s.Name + "/" + s.Identification
+	}
+	return s.Name
+}
+
 // NewService returns an initialized Service instance
 func (c *client) NewService(name string, identification string) *service {
 	return &service{
