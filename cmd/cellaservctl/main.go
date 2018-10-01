@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/evolutek/cellaserv3/broker"
 	"github.com/evolutek/cellaserv3/client"
 
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
@@ -14,14 +15,16 @@ var (
 	request     = kingpin.Command("request", "Make a request to a service.").Alias("r")
 	requestPath = request.Arg("path", "request path: service.method, service/id.method").Required().String()
 	requestArgs = request.Arg("args", "args for the method").StringMap()
+
+	listServices = kingpin.Command("list-services", "List services currently registered.").Alias("ls")
 )
 
 func main() {
+	// Connect to cellaserv
+	client := client.NewConnection(":4200")
+
 	switch kingpin.Parse() {
 	case "request":
-		// Connect to cellaserv
-		client := client.NewConnection(":4200")
-
 		// Parse service and method
 		requestPathSlice := strings.Split(*requestPath, ".")
 		requestService := requestPathSlice[0]
@@ -47,5 +50,21 @@ func main() {
 		var requestResponse interface{}
 		json.Unmarshal(respBytes, &requestResponse)
 		fmt.Printf("%#v\n", requestResponse)
+	case "list-services":
+		// Create stub
+		stub := client.NewServiceStub("cellaserv", "")
+		// Make request
+		respBytes := stub.Request("list-services", nil)
+		// Decode response
+		var services []broker.ServiceJSON
+		json.Unmarshal(respBytes, &services)
+		// Display services
+		for _, service := range services {
+			fmt.Print(service.Name)
+			if service.Identification != "" {
+				fmt.Printf("[%s]", service.Identification)
+			}
+			fmt.Print("\n")
+		}
 	}
 }
