@@ -13,7 +13,7 @@ type service struct {
 	Spies          []net.Conn
 }
 
-type serviceJSON struct {
+type ServiceJSON struct {
 	Addr           string
 	Name           string
 	Identification string
@@ -32,8 +32,8 @@ func (s *service) String() string {
 }
 
 // JSONStruct creates a struc good for JSON encoding.
-func (s *service) JSONStruct() *serviceJSON {
-	return &serviceJSON{
+func (s *service) JSONStruct() *ServiceJSON {
+	return &ServiceJSON{
 		Addr:           s.Conn.RemoteAddr().String(),
 		Name:           s.Name,
 		Identification: s.Identification,

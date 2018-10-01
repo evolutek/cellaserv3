@@ -58,7 +58,7 @@ func handleDescribeConn(conn net.Conn, req *cellaserv.Request) {
 func handleListServices(conn net.Conn, req *cellaserv.Request) {
 	// Fix static empty slice that is "null" in JSON
 	// A dynamic empty slice is []
-	servicesList := make([]*serviceJSON, 0)
+	servicesList := make([]*ServiceJSON, 0)
 	for _, names := range services {
 		for _, s := range names {
 			servicesList = append(servicesList, s.JSONStruct())
