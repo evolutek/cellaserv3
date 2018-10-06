@@ -3,16 +3,19 @@ package testutil
 import (
 	"bytes"
 	"encoding/binary"
+	"sync/atomic"
 	"testing"
 
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
 	"github.com/golang/protobuf/proto"
 )
 
+var NextMessageRequestId uint64
+
 func makeMessage(t *testing.T, msgType cellaserv.Message_MessageType, msgContent proto.Message) []byte {
 	msgContentBytes, err := proto.Marshal(msgContent)
 	if err != nil {
-		t.Fatal("Protobuf marshalling error: ", err)
+		t.Fatal("Protobuf marshalling error:", err)
 	}
 	msg := &cellaserv.Message{Type: &msgType, Content: msgContentBytes}
 	return MessageForNetwork(t, msg)
@@ -52,11 +55,22 @@ func MakeMessagePublish(t *testing.T, topic string) []byte {
 
 func MakeMessageRequest(t *testing.T, service string, ident string, method string, payload []byte) []byte {
 	msgType := cellaserv.Message_Request
+	msgId := atomic.AddUint64(&NextMessageRequestId, 1)
 	msgContent := &cellaserv.Request{
 		ServiceIdentification: &ident,
 		ServiceName:           &service,
 		Method:                &method,
 		Data:                  payload,
+		Id:                    &msgId,
+	}
+	return makeMessage(t, msgType, msgContent)
+}
+
+func MakeMessageReply(t *testing.T, msgId uint64, payload []byte) []byte {
+	msgType := cellaserv.Message_Reply
+	msgContent := &cellaserv.Reply{
+		Id:   &msgId,
+		Data: payload,
 	}
 	return makeMessage(t, msgType, msgContent)
 }

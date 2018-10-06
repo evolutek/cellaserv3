@@ -150,55 +150,57 @@ func logUnmarshalError(msg []byte) {
 	for _, b := range msg {
 		dbg = dbg + fmt.Sprintf("0x%02X ", b)
 	}
-	log.Error("[Net] Bad message: %s", dbg)
+	log.Error("[Net] Bad message (%d bytes): %s", len(msg), dbg)
 }
 
 func handleMessage(conn net.Conn, msgBytes []byte, msg *cellaserv.Message) error {
 	var err error
 
 	// Parse and process message payload
-	switch *msg.Type {
+	msgContent := msg.GetContent()
+
+	switch msg.GetType() {
 	case cellaserv.Message_Register:
 		register := &cellaserv.Register{}
-		err = proto.Unmarshal(msg.Content, register)
+		err = proto.Unmarshal(msgContent, register)
 		if err != nil {
-			logUnmarshalError(msg.Content)
+			logUnmarshalError(msgContent)
 			return fmt.Errorf("Could not unmarshal register: %s", err)
 		}
 		handleRegister(conn, register)
 		return nil
 	case cellaserv.Message_Request:
 		request := &cellaserv.Request{}
-		err = proto.Unmarshal(msg.Content, request)
+		err = proto.Unmarshal(msgContent, request)
 		if err != nil {
-			logUnmarshalError(msg.Content)
+			logUnmarshalError(msgContent)
 			return fmt.Errorf("Could not unmarshal request: %s", err)
 		}
 		handleRequest(conn, msgBytes, request)
 		return nil
 	case cellaserv.Message_Reply:
 		reply := &cellaserv.Reply{}
-		err = proto.Unmarshal(msg.Content, reply)
+		err = proto.Unmarshal(msgContent, reply)
 		if err != nil {
-			logUnmarshalError(msg.Content)
+			logUnmarshalError(msgContent)
 			return fmt.Errorf("Could not unmarshal reply: %s", err)
 		}
 		handleReply(conn, msgBytes, reply)
 		return nil
 	case cellaserv.Message_Subscribe:
 		sub := &cellaserv.Subscribe{}
-		err = proto.Unmarshal(msg.Content, sub)
+		err = proto.Unmarshal(msgContent, sub)
 		if err != nil {
-			logUnmarshalError(msg.Content)
+			logUnmarshalError(msgContent)
 			return fmt.Errorf("Could not unmarshal subscribe: %s", err)
 		}
 		handleSubscribe(conn, sub)
 		return nil
 	case cellaserv.Message_Publish:
 		pub := &cellaserv.Publish{}
-		err = proto.Unmarshal(msg.Content, pub)
+		err = proto.Unmarshal(msgContent, pub)
 		if err != nil {
-			logUnmarshalError(msg.Content)
+			logUnmarshalError(msgContent)
 			return fmt.Errorf("Could not unmarshal publish: %s", err)
 		}
 		handlePublish(conn, msgBytes, pub)
@@ -247,7 +249,7 @@ func ListenAndServe(sockAddrListen string) error {
 		if ok {
 			if nerr.Temporary() {
 				log.Warning("[Net] Could not accept: %s", err)
-				time.Sleep(1)
+				time.Sleep(10 * time.Millisecond)
 				continue
 			} else {
 				log.Error("[Net] Connection unavailable: %s", err)

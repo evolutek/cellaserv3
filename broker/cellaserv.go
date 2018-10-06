@@ -18,7 +18,6 @@ const (
 	logNewConnection   = "log.cellaserv.new-connection"
 	logNewService      = "log.cellaserv.new-service"
 	logNewSubscriber   = "log.cellaserv.new-subscriber"
-	logNewLogSession   = "log.cellaserv.new-log-session"
 )
 
 // Send conn data as this struct

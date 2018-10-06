@@ -8,3 +8,6 @@
 
 * prometheus monitoring
 * http UI
+* cellaservctl
+* add support for remote cellaserv: `CS_ADDR`
+* replace golang logging with op/go-logging

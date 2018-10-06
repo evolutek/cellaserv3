@@ -51,7 +51,7 @@ func LogSetup() {
 
 	var logBackend *logging.LogBackend
 	if *logToFile != "" {
-		// Use has specified a log file to use
+		// User has specified a log file to use
 		logFile, err := os.OpenFile(*logToFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0666)
 		if err != nil {
 			golog.Println(err)
