@@ -71,11 +71,15 @@ func main() {
 			var eventData interface{}
 			json.Unmarshal(eventBytes, &eventData)
 			// Display
-			fmt.Printf("%s:\n", eventName)
-			fmt.Printf("%#v\n", eventData)
+			fmt.Printf("%s: %v\n", eventName, eventData)
+
+			// Should exit?
+			if !*subscribeMonitor {
+				client.Close()
+			}
 		})
 		kingpin.FatalIfError(err, "Could no subscribe")
-		client.WaitClose()
+		<-client.Quit()
 	case "list-services":
 		// Create stub
 		stub := client.NewServiceStub("cellaserv", "")

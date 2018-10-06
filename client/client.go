@@ -29,7 +29,8 @@ type client struct {
 	currentRequestId uint64
 	requestsInFlight map[uint64]chan *cellaserv.Reply
 
-	closed chan bool
+	msgCh  chan *cellaserv.Message
+	quitCh chan struct{}
 }
 
 func (c *client) sendRequestWaitForReply(req *cellaserv.Request) *cellaserv.Reply {
@@ -114,10 +115,10 @@ func (c *client) handleReply(rep *cellaserv.Reply) error {
 
 func (c *client) handlePublish(pub *cellaserv.Publish) {
 	eventName := pub.GetEvent()
-	log.Info("[Publish] received: %s", eventName)
+	log.Info("[Publish] Received: %s", eventName)
 	for _, h := range c.subscribers {
 		if h.eventPattern.Match([]byte(eventName)) {
-			log.Debug("[Publish] %v matched %s", h, eventName)
+			log.Debug("[Publish] %s is handled by %p ", eventName, *h)
 			h.handle(eventName, pub.GetData())
 		}
 	}
@@ -159,14 +160,14 @@ func (c *client) handleMessage(msg *cellaserv.Message) error {
 	return nil
 }
 
-// TODO(halfr): replace by idiomatic context.Context.Done()<-true
+// Close shuts down the client.
 func (c *client) Close() {
-	c.closed <- true
+	close(c.quitCh)
 }
 
-// TODO(halfr) replace by idiomatic '<-c.ctx.Done()'
-func (c *client) WaitClose() {
-	<-c.closed
+// Quit returns the receive-only quit channel.
+func (c *client) Quit() <-chan struct{} {
+	return c.quitCh
 }
 
 func (c *client) RegisterService(s *service) {
@@ -191,7 +192,7 @@ func (c *client) RegisterService(s *service) {
 }
 
 func (c *client) Publish(event string, data interface{}) {
-	log.Debug("[Publish] %s(%#v)", event, data)
+	log.Debug("[Publish] Sending: %s(%v)", event, data)
 
 	// Serialize request payload
 	dataBytes, err := json.Marshal(data)
@@ -224,7 +225,7 @@ func (c *client) Subscribe(eventPattern *regexp.Regexp, handler subscriberHandle
 		eventPattern: eventPattern,
 		handle:       handler,
 	}
-	log.Debug("[Subscribe] Adding subsriber %p to event pattern: %s", s, eventPatternStr)
+	log.Debug("[Subscribe] Adding %p to event pattern: %s", *s, eventPatternStr)
 	c.subscribers = append(c.subscribers, s)
 
 	// Prepare subscribe message
@@ -255,24 +256,38 @@ func NewConnection(address string) *client {
 		services:         make(map[string]map[string]*service),
 		requestsInFlight: make(map[uint64]chan *cellaserv.Reply),
 		currentRequestId: rand.Uint64(),
-		closed:           make(chan bool),
+		msgCh:            make(chan *cellaserv.Message),
+		quitCh:           make(chan struct{}),
 	}
 
-	// Handle goroutine
+	// Receive incoming messages
 	go func() {
 		for {
-			closed, _, msg, err := common.RecvMessage(conn)
-			if err != nil {
-				log.Error("[Message] Receive: %s", err)
-			}
+			closed, _, msg, err := common.RecvMessage(c.conn)
 			if closed {
-				log.Info("[Net] Connection closed")
-				c.Close()
-				break
+				close(c.quitCh)
+				return
 			}
-			err = c.handleMessage(msg)
 			if err != nil {
-				log.Error("[Message] Handle: %s", err)
+				log.Errorf("Could not receive message: %s", err)
+				continue
+			}
+			c.msgCh <- msg
+		}
+	}()
+
+	// Lifetime goroutine
+	go func() {
+	Loop:
+		for {
+			select {
+			case msg := <-c.msgCh:
+				err = c.handleMessage(msg)
+				if err != nil {
+					log.Error("[Message] Handle: %s", err)
+				}
+			case <-c.quitCh:
+				break Loop
 			}
 		}
 	}()

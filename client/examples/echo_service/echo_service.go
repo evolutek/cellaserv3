@@ -28,5 +28,5 @@ func main() {
 	// Register the service on cellaserv
 	conn.RegisterService(echo)
 
-	conn.WaitClose()
+	<-conn.Quit()
 }

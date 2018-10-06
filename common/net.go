@@ -59,7 +59,7 @@ func RecvMessage(conn net.Conn) (closed bool, msgBytes []byte, msg *cellaserv.Me
 	_, err = conn.Read(msgBytes)
 	if err != nil {
 		err = fmt.Errorf("Could not read message: %s", err)
-		return
+		return err == io.EOF, nil, nil, nil
 	}
 
 	// Parse message header

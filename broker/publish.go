@@ -45,7 +45,7 @@ func doPublish(msgBytes []byte, pub *cellaserv.Publish) {
 	subs = append(subs, subscriberMap[event]...)
 
 	for _, connSub := range subs {
-		log.Debug("[Publish] Forwarding publish to %s", connDescribe(connSub))
+		log.Debug("[Publish] Forwarding %s to %s", pub.GetEvent(), connDescribe(connSub))
 		common.SendRawMessage(connSub, msgBytes)
 	}
 }
