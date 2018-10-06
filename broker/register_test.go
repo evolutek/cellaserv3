@@ -20,7 +20,7 @@ func serviceIsRegistered(t *testing.T, serviceName string, serviceIdent string) 
 }
 
 func TestRegister(t *testing.T) {
-	go func() {
+	brokerTest(t, func() {
 		conn := testutil.Dial(t)
 		defer conn.Close()
 
@@ -34,15 +34,11 @@ func TestRegister(t *testing.T) {
 
 		// The service is registered
 		serviceIsRegistered(t, serviceName, serviceIdent)
-
-		handleShutdown()
-	}()
-
-	listenAndServeForTest(t)
+	})
 }
 
 func TestRegisterReplace(t *testing.T) {
-	go func() {
+	brokerTest(t, func() {
 		conn := testutil.Dial(t)
 		defer conn.Close()
 
@@ -69,9 +65,5 @@ func TestRegisterReplace(t *testing.T) {
 
 		// The new service has replaced the old one
 		serviceIsRegistered(t, serviceName, serviceIdent)
-
-		handleShutdown()
-	}()
-
-	listenAndServeForTest(t)
+	})
 }

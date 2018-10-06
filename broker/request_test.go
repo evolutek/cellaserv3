@@ -12,9 +12,7 @@ import (
 )
 
 func TestRequestToService(t *testing.T) {
-	go func() {
-		defer handleShutdown()
-
+	brokerTest(t, func() {
 		connService := testutil.Dial(t)
 		defer connService.Close()
 
@@ -80,15 +78,11 @@ func TestRequestToService(t *testing.T) {
 		}
 
 		time.Sleep(50 * time.Millisecond)
-	}()
-
-	listenAndServeForTest(t)
+	})
 }
 
 func TestRequestNoService(t *testing.T) {
-	go func() {
-		defer handleShutdown()
-
+	brokerTest(t, func() {
 		conn := testutil.Dial(t)
 		defer conn.Close()
 
@@ -97,7 +91,5 @@ func TestRequestNoService(t *testing.T) {
 		conn.Write(msg)
 
 		time.Sleep(50 * time.Millisecond)
-	}()
-
-	listenAndServeForTest(t)
+	})
 }
