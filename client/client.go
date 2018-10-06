@@ -1,9 +1,11 @@
 package client
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net"
+	"regexp"
 	"sync/atomic"
 	"time"
 
@@ -12,9 +14,17 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
+type subscriberHandler func(eventName string, eventData []byte)
+
+type subscriber struct {
+	eventPattern *regexp.Regexp
+	handle       subscriberHandler
+}
+
 type client struct {
-	conn     net.Conn
-	services map[string]map[string]*service
+	conn        net.Conn
+	services    map[string]map[string]*service
+	subscribers []*subscriber
 
 	currentRequestId uint64
 	requestsInFlight map[uint64]chan *cellaserv.Reply
@@ -93,9 +103,6 @@ func (c *client) handleRequestReply(req *cellaserv.Request) {
 	common.SendMessage(c.conn, msg)
 }
 
-func (c *client) handlePublish(msg *cellaserv.Publish) {
-}
-
 func (c *client) handleReply(rep *cellaserv.Reply) error {
 	replyChan, ok := c.requestsInFlight[rep.GetId()]
 	if !ok {
@@ -103,6 +110,17 @@ func (c *client) handleReply(rep *cellaserv.Reply) error {
 	}
 	replyChan <- rep
 	return nil
+}
+
+func (c *client) handlePublish(pub *cellaserv.Publish) {
+	eventName := pub.GetEvent()
+	log.Info("[Publish] received: %s", eventName)
+	for _, h := range c.subscribers {
+		if h.eventPattern.Match([]byte(eventName)) {
+			log.Debug("[Publish] %v matched %s", h, eventName)
+			h.handle(eventName, pub.GetData())
+		}
+	}
 }
 
 func (c *client) handleMessage(msg *cellaserv.Message) error {
@@ -141,10 +159,12 @@ func (c *client) handleMessage(msg *cellaserv.Message) error {
 	return nil
 }
 
+// TODO(halfr): replace by idiomatic context.Context.Done()<-true
 func (c *client) Close() {
 	c.closed <- true
 }
 
+// TODO(halfr) replace by idiomatic '<-c.ctx.Done()'
 func (c *client) WaitClose() {
 	<-c.closed
 }
@@ -168,6 +188,59 @@ func (c *client) RegisterService(s *service) {
 	common.SendMessage(c.conn, msg)
 
 	log.Info("Service %s registered", s)
+}
+
+func (c *client) Publish(event string, data interface{}) {
+	log.Debug("[Publish] %s(%#v)", event, data)
+
+	// Serialize request payload
+	dataBytes, err := json.Marshal(data)
+	if err != nil {
+		panic(fmt.Sprintf("Could not marshal to JSON: %v", data))
+	}
+
+	// Prepare Publish message
+	pub := &cellaserv.Publish{
+		Event: &event,
+		Data:  dataBytes,
+	}
+	pubBytes, err := proto.Marshal(pub)
+	if err != nil {
+		panic(fmt.Sprintf("Could not marshal publish: %s", err))
+	}
+
+	// Send message
+	msgType := cellaserv.Message_Publish
+	msg := &cellaserv.Message{Type: &msgType, Content: pubBytes}
+	common.SendMessage(c.conn, msg)
+}
+
+func (c *client) Subscribe(eventPattern *regexp.Regexp, handler subscriberHandler) error {
+	// Get string representing the event regexp
+	eventPatternStr := eventPattern.String()
+
+	// Create and add to subscriber map
+	s := &subscriber{
+		eventPattern: eventPattern,
+		handle:       handler,
+	}
+	log.Debug("[Subscribe] Adding subsriber %p to event pattern: %s", s, eventPatternStr)
+	c.subscribers = append(c.subscribers, s)
+
+	// Prepare subscribe message
+	msgType := cellaserv.Message_Subscribe
+	sub := &cellaserv.Subscribe{Event: &eventPatternStr}
+	subBytes, err := proto.Marshal(sub)
+	if err != nil {
+		return fmt.Errorf("Could not marshal subscribe: %s", err)
+	}
+
+	msg := cellaserv.Message{Type: &msgType, Content: subBytes}
+
+	// Send subscribe message
+	common.SendMessage(c.conn, &msg)
+
+	return nil
 }
 
 // NewConnection returns a Client instance connected to cellaserv or panics

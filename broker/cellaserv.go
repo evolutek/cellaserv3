@@ -21,7 +21,7 @@ const (
 )
 
 // Send conn data as this struct
-type connNameJSON struct {
+type ConnNameJSON struct {
 	Addr string
 	Name string
 }
@@ -46,7 +46,7 @@ func handleDescribeConn(conn net.Conn, req *cellaserv.Request) {
 	connNameMap[conn] = data.Name
 	newName := connDescribe(conn)
 
-	pubJSON, _ := json.Marshal(connNameJSON{conn.RemoteAddr().String(), newName})
+	pubJSON, _ := json.Marshal(ConnNameJSON{conn.RemoteAddr().String(), newName})
 	cellaservPublish(logConnRename, pubJSON)
 
 	log.Debug("[Cellaserv] Describe %s as %s", conn.RemoteAddr(), data.Name)
@@ -73,11 +73,11 @@ func handleListServices(conn net.Conn, req *cellaserv.Request) {
 
 // handleListConnections replies with the list of currently connected clients
 func handleListConnections(conn net.Conn, req *cellaserv.Request) {
-	var conns []connNameJSON
+	var conns []ConnNameJSON
 	for c := connList.Front(); c != nil; c = c.Next() {
 		connElt := c.Value.(net.Conn)
 		conns = append(conns,
-			connNameJSON{connElt.RemoteAddr().String(), connDescribe(connElt)})
+			ConnNameJSON{connElt.RemoteAddr().String(), connDescribe(connElt)})
 	}
 
 	data, err := json.Marshal(conns)

@@ -64,6 +64,6 @@ func handleRegister(conn net.Conn, msg *cellaserv.Register) {
 	pubJSON, _ := json.Marshal(registeredService.JSONStruct())
 	cellaservPublish(logNewService, pubJSON)
 
-	pubJSON, _ = json.Marshal(connNameJSON{conn.RemoteAddr().String(), connDescribe(conn)})
+	pubJSON, _ = json.Marshal(ConnNameJSON{conn.RemoteAddr().String(), connDescribe(conn)})
 	cellaservPublish(logConnRename, pubJSON)
 }

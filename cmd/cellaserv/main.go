@@ -76,7 +76,7 @@ func main() {
 	}
 
 	if err := g.Run(); err != nil {
-		log.Error("Error: %s", err)
+		log.Errorf("Error: %s", err)
 		os.Exit(1)
 	}
 }
