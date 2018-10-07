@@ -8,16 +8,6 @@ import (
 	"github.com/evolutek/cellaserv3/broker"
 )
 
-func serviceRequestNoSuchMethod(t *testing.T, s *serviceStub) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("Did not panic on invalid method")
-		}
-	}()
-
-	s.Request("foobarlol", nil)
-}
-
 func TestServiceRequest(t *testing.T) {
 	go func() {
 		// Open connection
@@ -35,13 +25,16 @@ func TestServiceRequest(t *testing.T) {
 
 		// Create service client connection
 		connRequest := NewConnection(":4200")
-		dateServiceStub := connRequest.NewServiceStub("date", "")
+		dateServiceStub := NewServiceStub(connRequest, "date", "")
 
 		// Test valid method
 		dateServiceStub.Request("time", nil)
 
 		// Testt invalid method
-		serviceRequestNoSuchMethod(t, dateServiceStub)
+		_, err := dateServiceStub.Request("foobarlol", nil)
+		if err == nil {
+			t.Errorf("Did not return error on non-existing method")
+		}
 
 		// Shutdown cellaserv
 		broker.Shutdown()

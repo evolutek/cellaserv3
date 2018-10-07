@@ -15,11 +15,10 @@ var (
 	log *logging.Logger
 
 	// Command line flags
-	logRootDirectory = flag.String("log-root", ".", "root directory of logs")
+	logRootDirectory = flag.String("log-dir", "", "root directory of logs, empty means do not write logs to files")
 	logSubDir        string
 	logLevelFlag     = flag.String("log-level", "2", "logger verbosity (0 = WARNING, 1 = INFO, 2 = DEBUG)")
 	logToFile        = flag.String("log-file", "", "log to file instead of stderr")
-	logPersistent    = flag.Bool("log-persistent", false, "store log persistently")
 
 	// Maps events to their dedicated loggers
 	loggers map[string]*golog.Logger
@@ -75,9 +74,9 @@ func LogSetup() {
 	logRotateTimeNow()
 }
 
-// logRotateName changes the log directory
-func logRotateName(name string) {
-	if *logPersistent {
+// logRotate changes the log directory
+func logRotate(name string) {
+	if *logRootDirectory != "" {
 		log.Debug("[Log] Writing new logs to: %s", name)
 		logSubDir = name
 		logFullDir := path.Join(*logRootDirectory, logSubDir)
@@ -95,14 +94,14 @@ func logRotateName(name string) {
 func logRotateTimeNow() {
 	now := time.Now()
 	newSubDir := now.Format(time.Stamp)
-	logRotateName(newSubDir)
+	logRotate(newSubDir)
 }
 
 // loggerSetup setup and returns a new logger
 func loggerSetup(logName string) *golog.Logger {
 	logger, found := loggers[logName]
 	if !found {
-		if *logPersistent {
+		if *logRootDirectory != "" {
 			logFilename := path.Join(*logRootDirectory, logSubDir, logName+".log")
 			logFd, err := os.OpenFile(logFilename, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
 			if err != nil {

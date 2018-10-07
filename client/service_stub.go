@@ -21,7 +21,7 @@ func (s *serviceStub) String() string {
 	return fmt.Sprintf("%s[%s]", s.name, s.identification)
 }
 
-func (s *serviceStub) Request(method string, data interface{}) []byte {
+func (s *serviceStub) Request(method string, data interface{}) ([]byte, error) {
 	log.Debug("[Request] %s.%s(%#v)", s, method, data)
 
 	// Serialize request payload
@@ -44,13 +44,14 @@ func (s *serviceStub) Request(method string, data interface{}) []byte {
 	// Check for errors
 	replyError := reply.GetError()
 	if replyError != nil {
-		panic(fmt.Sprintf("[Reply] Error: %s", replyError.String()))
+		log.Error("[Reply] Error: %s", replyError.String())
+		return nil, fmt.Errorf(replyError.String())
 	}
 
-	return reply.GetData()
+	return reply.GetData(), nil
 }
 
-func (c *client) NewServiceStub(name string, identification string) *serviceStub {
+func NewServiceStub(c *client, name string, identification string) *serviceStub {
 	return &serviceStub{
 		name:           name,
 		identification: identification,

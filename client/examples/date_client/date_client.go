@@ -6,15 +6,22 @@ import (
 	"time"
 
 	"github.com/evolutek/cellaserv3/client"
+	"github.com/evolutek/cellaserv3/common"
 )
+
+var log = common.GetLog()
 
 func main() {
 	// Connect to cellaserv
-	client := client.NewConnection(":4200")
+	conn := client.NewConnection(":4200")
 	// Create date service stub
-	date := client.NewServiceStub("date", "")
+	date := client.NewServiceStub(conn, "date", "")
 	// Request date.time()
-	respBytes := date.Request("time", nil)
+	respBytes, err := date.Request("time", nil)
+	if err != nil {
+		log.Error("date.time() query failed: %s", err)
+		return
+	}
 	var resp time.Time
 	// Process response
 	json.Unmarshal(respBytes, &resp)

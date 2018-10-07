@@ -10,9 +10,12 @@ import (
 	"time"
 
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
+	"github.com/evolutek/cellaserv3/broker"
 	"github.com/evolutek/cellaserv3/common"
 	"github.com/golang/protobuf/proto"
 )
+
+var log = common.GetLog()
 
 type subscriberHandler func(eventName string, eventData []byte)
 
@@ -21,15 +24,25 @@ type subscriber struct {
 	handle       subscriberHandler
 }
 
+type spyHandler func(req *cellaserv.Request, rep *cellaserv.Reply)
+
+type spyPendingRequest struct {
+	req   *cellaserv.Request
+	spies []spyHandler
+}
+
 type client struct {
-	conn        net.Conn
-	services    map[string]map[string]*service
-	subscribers []*subscriber
+	conn               net.Conn
+	services           map[string]map[string]*service
+	subscribers        []*subscriber
+	spies              map[string]map[string][]spyHandler
+	spyRequestsPending map[uint64]*spyPendingRequest
 
 	currentRequestId uint64
 	requestsInFlight map[uint64]chan *cellaserv.Reply
 
 	msgCh  chan *cellaserv.Message
+	errCh  chan error
 	quitCh chan struct{}
 }
 
@@ -57,41 +70,61 @@ func (c *client) sendRequestWaitForReply(req *cellaserv.Request) *cellaserv.Repl
 	return <-c.requestsInFlight[*req.Id]
 }
 
-// handleRequest
-func (c *client) handleRequest(req *cellaserv.Request) ([]byte, error) {
-	name := *req.ServiceName
-	method := *req.Method
-	id := *req.Id
+func (c *client) handleRequest(req *cellaserv.Request) error {
+	name := req.GetServiceName()
+	ident := req.GetServiceIdentification()
+	method := req.GetMethod()
+	log.Debug("[Request] %s/%s.%s", name, ident, method)
 
-	var ident string
-	if *req.ServiceIdentification != "" {
-		ident = *req.ServiceIdentification
-		log.Debug("[Request] id:%d %s[%s].%s", id, name, ident, method)
-	} else {
-		log.Debug("[Request] id:%d %s.%s", id, name, method)
+	// Dispatch request to spies
+	hasSpied := false
+	identsSpied, ok := c.spies[name]
+	if ok {
+		spies, ok := identsSpied[ident]
+		if ok {
+			log.Infof("[Spy] Received spied request: %s/%s.%s", name, ident, method)
+			hasSpied = true
+			// Spy handler is called when the reply to this request is received
+			c.spyRequestsPending[req.GetId()] = &spyPendingRequest{
+				req:   req,
+				spies: spies,
+			}
+		}
 	}
 
-	// Find service instance
+	// Dispatch request to acutal service
 	idents, ok := c.services[name]
-	if !ok || len(idents) == 0 {
-		panic(fmt.Sprintf("[Request] id:%d No such service: %s", id, name))
+	if !ok {
+		if hasSpied {
+			return nil
+		}
+		return fmt.Errorf("[Request] No such service: %s", name)
 	}
 
 	srvc, ok := idents[ident]
-	return srvc.handleRequest(req, method)
+	if !ok {
+		if hasSpied {
+			return nil
+		}
+		return fmt.Errorf("[Request] No such service identification for %s: %s, has: %v", name, ident, idents)
+	}
+
+	replyData, replyErr := srvc.handleRequest(req, method)
+	c.sendRequestReply(req, replyData, replyErr)
+
+	return nil
 }
 
-func (c *client) handleRequestReply(req *cellaserv.Request) {
-	// Handle request
-	replyBytes, err := c.handleRequest(req)
-
-	// Send reply
+func (c *client) sendRequestReply(req *cellaserv.Request, replyData []byte, replyErr error) {
 	msgType := cellaserv.Message_Reply
-	msgContent := &cellaserv.Reply{Id: req.Id, Data: replyBytes}
+	msgContent := &cellaserv.Reply{Id: req.Id, Data: replyData}
 
-	if err != nil {
-		// Add error info
-		errString := err.Error()
+	if replyErr != nil {
+		// Log error
+		log.Warningf("[Request] Reply error: %s", replyErr)
+
+		// Add error info to reply
+		errString := replyErr.Error()
 		msgContent.Error = &cellaserv.Reply_Error{
 			Type: cellaserv.Reply_Error_Custom.Enum(),
 			What: &errString,
@@ -105,8 +138,25 @@ func (c *client) handleRequestReply(req *cellaserv.Request) {
 }
 
 func (c *client) handleReply(rep *cellaserv.Reply) error {
+	// Dispatch reply to spies
+	hasSpied := false
+	spyPending, ok := c.spyRequestsPending[rep.GetId()]
+	if ok {
+		log.Infof("[Spy] Dispatching request and reply %d", rep.GetId())
+		hasSpied = true
+		for _, spy := range spyPending.spies {
+			spy(spyPending.req, rep)
+		}
+		// Remove pending request
+		delete(c.spyRequestsPending, rep.GetId())
+	}
+
+	// Dispatch reply to known requests
 	replyChan, ok := c.requestsInFlight[rep.GetId()]
 	if !ok {
+		if hasSpied {
+			return nil
+		}
 		return fmt.Errorf("Could not find request matching reply: %s", rep.String())
 	}
 	replyChan <- rep
@@ -135,7 +185,7 @@ func (c *client) handleMessage(msg *cellaserv.Message) error {
 		if err != nil {
 			return fmt.Errorf("Could not unmarshal request: %s", err)
 		}
-		c.handleRequestReply(request)
+		return c.handleRequest(request)
 	case cellaserv.Message_Publish:
 		pub := &cellaserv.Publish{}
 		err = proto.Unmarshal(msg.Content, pub)
@@ -244,6 +294,27 @@ func (c *client) Subscribe(eventPattern *regexp.Regexp, handler subscriberHandle
 	return nil
 }
 
+func (c *client) Spy(serviceName string, serviceIdentification string, handler spyHandler) error {
+	// Create and add spy handler
+	spyIdents, ok := c.spies[serviceName]
+	if !ok {
+		spyIdents = make(map[string][]spyHandler)
+		c.spies[serviceName] = spyIdents
+	}
+	spyIdents[serviceIdentification] = append(spyIdents[serviceIdentification], handler)
+
+	// Create service stub
+	cs := NewServiceStub(c, "cellaserv", "")
+	// Make request
+	spyArgs := &broker.SpyRequest{
+		Service:        serviceName,
+		Identification: serviceIdentification,
+	}
+	cs.Request("spy", spyArgs)
+
+	return nil
+}
+
 // NewConnection returns a Client instance connected to cellaserv or panics
 func NewConnection(address string) *client {
 	conn, err := net.Dial("tcp", address)
@@ -252,12 +323,14 @@ func NewConnection(address string) *client {
 	}
 
 	c := &client{
-		conn:             conn,
-		services:         make(map[string]map[string]*service),
-		requestsInFlight: make(map[uint64]chan *cellaserv.Reply),
-		currentRequestId: rand.Uint64(),
-		msgCh:            make(chan *cellaserv.Message),
-		quitCh:           make(chan struct{}),
+		conn:               conn,
+		services:           make(map[string]map[string]*service),
+		requestsInFlight:   make(map[uint64]chan *cellaserv.Reply),
+		spies:              make(map[string]map[string][]spyHandler),
+		spyRequestsPending: make(map[uint64]*spyPendingRequest),
+		currentRequestId:   rand.Uint64(),
+		msgCh:              make(chan *cellaserv.Message),
+		quitCh:             make(chan struct{}),
 	}
 
 	// Receive incoming messages
@@ -276,7 +349,7 @@ func NewConnection(address string) *client {
 		}
 	}()
 
-	// Lifetime goroutine
+	// Handle message or quit
 	go func() {
 	Loop:
 		for {
@@ -296,5 +369,6 @@ func NewConnection(address string) *client {
 }
 
 func init() {
+	// Random is used to create a
 	rand.Seed(time.Now().UnixNano())
 }

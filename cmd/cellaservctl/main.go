@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
 	"github.com/evolutek/cellaserv3/broker"
 	"github.com/evolutek/cellaserv3/client"
 
@@ -25,14 +26,45 @@ var (
 	subscribeEvent   = subscribe.Arg("event", "Event name pattern to subscribe to.").Required().String()
 	subscribeMonitor = subscribe.Flag("monitor", "Instead of exiting after received a single event, execute indefinitely.").Short('m').Bool()
 
+	spy     = kingpin.Command("spy", "Listens to all requests and responses to a service.")
+	spyPath = spy.Arg("path", "spy path: service or service/id").Required().String()
+
 	listServices = kingpin.Command("list-services", "Lists services currently registered.").Alias("ls")
 
 	listConnections = kingpin.Command("list-connections", "Lists connections currently established.").Alias("lc")
 )
 
+func parseServicePath(path string) (string, string) {
+	pathSlice := strings.Split(path, ".")
+	service := pathSlice[0]
+
+	// Default identification
+	var identification string
+
+	// Extract identification, if present
+	identificationSlice := strings.Split(service, "/")
+	if len(identificationSlice) == 2 {
+		service = identificationSlice[0]
+		identification = identificationSlice[1]
+	}
+	return service, identification
+}
+
+func requestToString(req *cellaserv.Request) string {
+	var reqData interface{}
+	_ = json.Unmarshal(req.GetData(), &reqData)
+	return fmt.Sprintf("%s/%s.%s(%v)", req.GetServiceName(), req.GetServiceIdentification(), req.GetMethod(), reqData)
+}
+
+func replyToString(rep *cellaserv.Reply) string {
+	var repData interface{}
+	_ = json.Unmarshal(rep.GetData(), &repData)
+	return fmt.Sprintf("%v", repData)
+}
+
 func main() {
 	// Connect to cellaserv
-	client := client.NewConnection(":4200")
+	conn := client.NewConnection(":4200")
 
 	switch kingpin.Parse() {
 	case "request":
@@ -52,42 +84,54 @@ func main() {
 		}
 
 		// Create service stub
-		service := client.NewServiceStub(requestService, requestServiceIdentification)
+		service := client.NewServiceStub(conn, requestService, requestServiceIdentification)
 
 		// Make request
-		respBytes := service.Request(requestMethod, requestArgs)
+		respBytes, err := service.Request(requestMethod, requestArgs)
+		kingpin.FatalIfError(err, "Request failed")
 
 		// Display response
 		var requestResponse interface{}
 		json.Unmarshal(respBytes, &requestResponse)
 		fmt.Printf("%#v\n", requestResponse)
 	case "publish":
-		client.Publish(*publishEvent, *publishArgs)
+		conn.Publish(*publishEvent, *publishArgs)
 	case "subscribe":
 		eventPattern, err := regexp.Compile(*subscribeEvent)
 		kingpin.FatalIfError(err, "Invalid event name pattern: %s", *subscribeEvent)
-		err = client.Subscribe(eventPattern, func(eventName string, eventBytes []byte) {
-			// Decode
-			var eventData interface{}
-			json.Unmarshal(eventBytes, &eventData)
-			// Display
-			fmt.Printf("%s: %v\n", eventName, eventData)
+		err = conn.Subscribe(eventPattern,
+			func(eventName string, eventBytes []byte) {
+				// Decode
+				var eventData interface{}
+				json.Unmarshal(eventBytes, &eventData)
+				// Display
+				fmt.Printf("%s: %v\n", eventName, eventData)
 
-			// Should exit?
-			if !*subscribeMonitor {
-				client.Close()
-			}
-		})
+				// Should exit?
+				if !*subscribeMonitor {
+					conn.Close()
+				}
+			})
 		kingpin.FatalIfError(err, "Could no subscribe")
-		<-client.Quit()
+		<-conn.Quit()
+	case "spy":
+		service, identification := parseServicePath(*spyPath)
+		conn.Spy(service, identification,
+			func(req *cellaserv.Request, rep *cellaserv.Reply) {
+				fmt.Printf("%s: %s\n", requestToString(req),
+					replyToString(rep))
+			})
+		<-conn.Quit()
 	case "list-services":
 		// Create stub
-		stub := client.NewServiceStub("cellaserv", "")
+		stub := client.NewServiceStub(conn, "cellaserv", "")
 		// Make request
-		respBytes := stub.Request("list-services", nil)
+		respBytes, err := stub.Request("list-services", nil)
+		kingpin.FatalIfError(err, "Request failed")
 		// Decode response
 		var services []broker.ServiceJSON
-		json.Unmarshal(respBytes, &services)
+		err = json.Unmarshal(respBytes, &services)
+		kingpin.FatalIfError(err, "Unmarshal of reply data failed")
 		// Display services
 		for _, service := range services {
 			fmt.Print(service.Name)
@@ -98,12 +142,14 @@ func main() {
 		}
 	case "list-connections":
 		// Create stub
-		stub := client.NewServiceStub("cellaserv", "")
+		stub := client.NewServiceStub(conn, "cellaserv", "")
 		// Make request
-		respBytes := stub.Request("list-connections", nil)
+		respBytes, err := stub.Request("list-connections", nil)
+		kingpin.FatalIfError(err, "Request failed")
 		// Decode response
 		var connections []broker.ConnNameJSON
-		json.Unmarshal(respBytes, &connections)
+		err = json.Unmarshal(respBytes, &connections)
+		kingpin.FatalIfError(err, "Unmarshal of reply data failed")
 		// Display connections
 		for _, connection := range connections {
 			fmt.Printf("%s %s\n", connection.Addr, connection.Name)

@@ -26,6 +26,11 @@ type ConnNameJSON struct {
 	Name string
 }
 
+type SpyRequest struct {
+	Service        string
+	Identification string
+}
+
 // handleDescribeConn attaches a name to the connection that sent the request.
 //
 // The name of the connection is normally given when a service registers.
@@ -127,11 +132,7 @@ func Shutdown() {
 
 // handleSpy registers the connection as a spy of a service
 func handleSpy(conn net.Conn, req *cellaserv.Request) {
-	var data struct {
-		Service        string
-		Identification string
-	}
-
+	var data SpyRequest
 	err := json.Unmarshal(req.Data, &data)
 	if err != nil {
 		log.Warning("[Cellaserv] Could not spy, json error: %s", err)
