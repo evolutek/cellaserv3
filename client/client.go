@@ -41,9 +41,9 @@ type client struct {
 	currentRequestId uint64
 	requestsInFlight map[uint64]chan *cellaserv.Reply
 
-	msgCh  chan *cellaserv.Message
-	errCh  chan error
-	quitCh chan struct{}
+	msgCh   chan *cellaserv.Message
+	closeCh chan struct{}
+	quitCh  chan struct{}
 }
 
 func (c *client) sendRequestWaitForReply(req *cellaserv.Request) *cellaserv.Reply {
@@ -315,13 +315,7 @@ func (c *client) Spy(serviceName string, serviceIdentification string, handler s
 	return nil
 }
 
-// NewConnection returns a Client instance connected to cellaserv or panics
-func NewConnection(address string) *client {
-	conn, err := net.Dial("tcp", address)
-	if err != nil {
-		panic(fmt.Errorf("Could not connect to cellaserv: %s", err))
-	}
-
+func newClient(conn net.Conn) *client {
 	c := &client{
 		conn:               conn,
 		services:           make(map[string]map[string]*service),
@@ -330,6 +324,7 @@ func NewConnection(address string) *client {
 		spyRequestsPending: make(map[uint64]*spyPendingRequest),
 		currentRequestId:   rand.Uint64(),
 		msgCh:              make(chan *cellaserv.Message),
+		closeCh:            make(chan struct{}),
 		quitCh:             make(chan struct{}),
 	}
 
@@ -338,8 +333,8 @@ func NewConnection(address string) *client {
 		for {
 			closed, _, msg, err := common.RecvMessage(c.conn)
 			if closed {
-				close(c.quitCh)
-				return
+				close(c.closeCh)
+				break
 			}
 			if err != nil {
 				log.Errorf("Could not receive message: %s", err)
@@ -355,10 +350,12 @@ func NewConnection(address string) *client {
 		for {
 			select {
 			case msg := <-c.msgCh:
-				err = c.handleMessage(msg)
+				err := c.handleMessage(msg)
 				if err != nil {
 					log.Error("[Message] Handle: %s", err)
 				}
+			case <-c.closeCh:
+				break Loop
 			case <-c.quitCh:
 				break Loop
 			}
@@ -366,6 +363,16 @@ func NewConnection(address string) *client {
 	}()
 
 	return c
+}
+
+// NewConnection returns a Client instance connected to cellaserv or panics
+func NewConnection(address string) *client {
+	conn, err := net.Dial("tcp", address)
+	if err != nil {
+		panic(fmt.Errorf("Could not connect to cellaserv: %s", err))
+	}
+
+	return newClient(conn)
 }
 
 func init() {
