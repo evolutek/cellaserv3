@@ -14,8 +14,8 @@ type requestTracking struct {
 	spies  []net.Conn
 }
 
-func handleRequest(conn net.Conn, msgRaw []byte, req *cellaserv.Request) {
-	log.Info("[Request] Incoming from %s", conn.RemoteAddr())
+func (b *Broker) handleRequest(conn net.Conn, msgRaw []byte, req *cellaserv.Request) {
+	b.logger.Info("[Request] Incoming from %s", conn.RemoteAddr())
 
 	name := req.GetServiceName()
 	method := req.GetMethod()
@@ -23,42 +23,42 @@ func handleRequest(conn net.Conn, msgRaw []byte, req *cellaserv.Request) {
 	ident := req.GetServiceIdentification()
 
 	if ident != "" {
-		log.Debug("[Request] id:%d %s[%s].%s", id, name, ident, method)
+		b.logger.Debug("[Request] id:%d %s[%s].%s", id, name, ident, method)
 	} else {
-		log.Debug("[Request] id:%d %s.%s", id, name, method)
+		b.logger.Debug("[Request] id:%d %s.%s", id, name, method)
 	}
 
 	if name == "cellaserv" {
-		cellaservRequest(conn, req)
+		b.cellaservRequest(conn, req)
 		return
 	}
 
-	idents, ok := services[name]
+	idents, ok := b.Services[name]
 	if !ok || len(idents) == 0 {
-		log.Warning("[Request] id:%d No such service: %s", id, name)
-		sendReplyError(conn, req, cellaserv.Reply_Error_NoSuchService)
+		b.logger.Warning("[Request] id:%d No such service: %s", id, name)
+		b.sendReplyError(conn, req, cellaserv.Reply_Error_NoSuchService)
 		return
 	}
 	srvc, ok := idents[ident]
 	if !ok {
-		log.Warning("[Request] id:%d No such identification for service %s: %s",
+		b.logger.Warning("[Request] id:%d No such identification for service %s: %s",
 			id, name, ident)
-		sendReplyError(conn, req, cellaserv.Reply_Error_InvalidIdentification)
+		b.sendReplyError(conn, req, cellaserv.Reply_Error_InvalidIdentification)
 		return
 	}
 
 	// Handle timeouts
 	handleTimeout := func() {
-		_, ok := reqIds[id]
+		_, ok := b.reqIds[id]
 		if ok {
-			log.Error("[Request] id:%d Timeout of %s", id, srvc)
-			sendReplyError(conn, req, cellaserv.Reply_Error_Timeout)
+			b.logger.Error("[Request] id:%d Timeout of %s", id, srvc)
+			b.sendReplyError(conn, req, cellaserv.Reply_Error_Timeout)
 		}
 	}
 	timer := time.AfterFunc(5*time.Second, handleTimeout)
 
 	// The ID is used to track the sender of the request
-	reqIds[id] = &requestTracking{conn, timer, srvc.Spies}
+	b.reqIds[id] = &requestTracking{conn, timer, srvc.Spies}
 
 	srvc.sendMessage(msgRaw)
 

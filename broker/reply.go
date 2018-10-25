@@ -7,16 +7,16 @@ import (
 	"github.com/evolutek/cellaserv3/common"
 )
 
-func handleReply(conn net.Conn, msgRaw []byte, rep *cellaserv.Reply) {
+func (b *Broker) handleReply(conn net.Conn, msgRaw []byte, rep *cellaserv.Reply) {
 	id := *rep.Id
-	log.Info("[Reply] id:%d reply from %s", id, conn.RemoteAddr())
+	b.logger.Info("[Reply] id:%d reply from %s", id, conn.RemoteAddr())
 
-	reqTrack, ok := reqIds[id]
+	reqTrack, ok := b.reqIds[id]
 	if !ok {
-		log.Error("[Reply] Unknown ID: %d", id)
+		b.logger.Error("[Reply] Unknown ID: %d", id)
 		return
 	}
-	delete(reqIds, id)
+	delete(b.reqIds, id)
 
 	// Forward reply to spies
 	for _, spy := range reqTrack.spies {
@@ -24,6 +24,6 @@ func handleReply(conn net.Conn, msgRaw []byte, rep *cellaserv.Reply) {
 	}
 
 	reqTrack.timer.Stop()
-	log.Debug("[Reply] Forwarding to %s", reqTrack.sender.RemoteAddr())
+	b.logger.Debug("[Reply] Forwarding to %s", reqTrack.sender.RemoteAddr())
 	common.SendRawMessage(reqTrack.sender, msgRaw)
 }

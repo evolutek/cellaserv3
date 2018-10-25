@@ -23,8 +23,12 @@ type Handler struct {
 }
 
 func (h *Handler) Run(ctx context.Context) error {
+	// TODO(halfr) put that in h.Option
+	httpListenAddr := ":4280"
+
+	log.Info("[HTTP] Listening on %s", httpListenAddr)
 	httpSrv := &http.Server{
-		Addr:    ":4280",
+		Addr:    httpListenAddr,
 		Handler: h.router,
 	}
 	return httpSrv.ListenAndServe()

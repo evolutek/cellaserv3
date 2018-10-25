@@ -5,6 +5,7 @@ import (
 	golog "log"
 	"os"
 	"path"
+	"sync"
 	"time"
 
 	logging "gopkg.in/op/go-logging.v1"
@@ -12,7 +13,8 @@ import (
 
 var (
 	// log is the main cellaserv logger, use it everywhere you want!
-	log *logging.Logger
+	log           *logging.Logger
+	logSetupMutex = &sync.Mutex{}
 
 	// Command line flags
 	logRootDirectory = flag.String("log-dir", "", "root directory of logs, empty means do not write logs to files")
@@ -39,10 +41,9 @@ func getLogLevel() logging.Level {
 	return logging.WARNING
 }
 
-// LogSetup configures the loggging subsystem. Returns the name of the logging directory
+// LogSetup configures the loggging subsystem.
 func LogSetup() {
 	if log != nil {
-		log.Warning("Logs are already initialized.")
 		return
 	}
 
@@ -74,7 +75,7 @@ func LogSetup() {
 	logRotateTimeNow()
 }
 
-// logRotate changes the log directory
+// logRotate changes the log directory.
 func logRotate(name string) {
 	if *logRootDirectory != "" {
 		log.Debug("[Log] Writing new logs to: %s", name)
@@ -131,8 +132,9 @@ func LogEvent(event string, msg string) {
 }
 
 func GetLog() *logging.Logger {
-	if log == nil {
-		LogSetup()
-	}
 	return log
+}
+
+func init() {
+	LogSetup()
 }

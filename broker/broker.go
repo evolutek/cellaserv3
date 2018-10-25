@@ -14,9 +14,14 @@ import (
 	logging "gopkg.in/op/go-logging.v1"
 )
 
-var (
-	// Main logger
-	log *logging.Logger
+type Options struct {
+	ListenAddress string
+}
+
+type Broker struct {
+	logger *logging.Logger
+
+	Options *Options
 
 	// Socket where all incoming connections go
 	mainListener net.Listener
@@ -31,7 +36,7 @@ var (
 	connSpies map[net.Conn][]*service
 
 	// Map of currently connected services by name, then identification
-	services map[string]map[string]*service
+	Services map[string]map[string]*service
 
 	// Map of all services associated with a connection
 	servicesConn map[net.Conn][]*service
@@ -40,70 +45,57 @@ var (
 	reqIds             map[uint64]*requestTracking
 	subscriberMap      map[string][]net.Conn
 	subscriberMatchMap map[string][]net.Conn
-)
-
-type Options struct {
-	ListenAddress string
-}
-
-type Broker struct {
-	logger *logging.Logger
-
-	Options *Options
-
-	// Map of currently connected services by name, then identification
-	Services map[string]map[string]*service
 }
 
 // Manage incoming connexions
-func handle(conn net.Conn) {
-	log.Info("[Net] Connection opened: %s", connDescribe(conn))
+func (b *Broker) handle(conn net.Conn) {
+	b.logger.Info("[Net] Connection opened: %s", b.connDescribe(conn))
 
 	connJSON := connToJSON(conn)
-	cellaservPublish(logNewConnection, connJSON)
+	b.cellaservPublish(logNewConnection, connJSON)
 
 	// Append to list of handled connections
-	connListElt := connList.PushBack(conn)
+	connListElt := b.connList.PushBack(conn)
 
 	// Handle all messages received on this connection
 	for {
 		closed, msgBytes, msg, err := common.RecvMessage(conn)
 		if err != nil {
-			log.Error("[Message] Receive: %s", err)
+			b.logger.Error("[Message] Receive: %s", err)
 		}
 		if closed {
-			log.Info("[Net] Connection closed: %s", connDescribe(conn))
+			b.logger.Info("[Net] Connection closed: %s", b.connDescribe(conn))
 			break
 		}
-		err = handleMessage(conn, msgBytes, msg)
+		err = b.handleMessage(conn, msgBytes, msg)
 		if err != nil {
-			log.Error("[Message] Handle: %s", err)
+			b.logger.Error("[Message] Handle: %s", err)
 		}
 	}
 
 	// Remove from list of handled connection
-	connList.Remove(connListElt)
+	b.connList.Remove(connListElt)
 
 	// Clean connection name, if not given this is a noop
-	delete(connNameMap, conn)
+	delete(b.connNameMap, conn)
 
 	// Remove services registered by this connection
 	// TODO: notify goroutines waiting for acks for this service
-	for _, s := range servicesConn[conn] {
-		log.Info("[Services] Remove %s", s)
+	for _, s := range b.servicesConn[conn] {
+		b.logger.Info("[Services] Remove %s", s)
 		pubJSON, _ := json.Marshal(s.JSONStruct())
-		cellaservPublish(logLostService, pubJSON)
-		delete(services[s.Name], s.Identification)
+		b.cellaservPublish(logLostService, pubJSON)
+		delete(b.Services[s.Name], s.Identification)
 
 		// Close connections that spied this service
 		for _, c := range s.Spies {
-			log.Debug("[Service] Close spy conn: %s", connDescribe(c))
+			b.logger.Debug("[Service] Close spy conn: %s", b.connDescribe(c))
 			if err := c.Close(); err != nil {
-				log.Error("Could not close connection:", err)
+				b.logger.Error("Could not close connection:", err)
 			}
 		}
 	}
-	delete(servicesConn, conn)
+	delete(b.servicesConn, conn)
 
 	// Remove subscribes from this connection
 	removeConnFromMap := func(subMap map[string][]net.Conn) {
@@ -115,8 +107,8 @@ func handle(conn net.Conn) {
 					subMap[key] = subs[:len(subs)-1]
 
 					pubJSON, _ := json.Marshal(
-						logSubscriberJSON{key, connDescribe(conn)})
-					cellaservPublish(logLostSubscriber, pubJSON)
+						logSubscriberJSON{key, b.connDescribe(conn)})
+					b.cellaservPublish(logLostSubscriber, pubJSON)
 
 					if len(subMap[key]) == 0 {
 						delete(subMap, key)
@@ -126,11 +118,11 @@ func handle(conn net.Conn) {
 			}
 		}
 	}
-	removeConnFromMap(subscriberMap)
-	removeConnFromMap(subscriberMatchMap)
+	removeConnFromMap(b.subscriberMap)
+	removeConnFromMap(b.subscriberMatchMap)
 
 	// Remove conn from the services it spied
-	for _, srvc := range connSpies[conn] {
+	for _, srvc := range b.connSpies[conn] {
 		for i, connItem := range srvc.Spies {
 			if connItem == conn {
 				// Remove from slice
@@ -140,20 +132,20 @@ func handle(conn net.Conn) {
 			}
 		}
 	}
-	delete(connSpies, conn)
+	delete(b.connSpies, conn)
 
-	cellaservPublish(logCloseConnection, connJSON)
+	b.cellaservPublish(logCloseConnection, connJSON)
 }
 
-func logUnmarshalError(msg []byte) {
+func (b *Broker) logUnmarshalError(msg []byte) {
 	dbg := ""
 	for _, b := range msg {
 		dbg = dbg + fmt.Sprintf("0x%02X ", b)
 	}
-	log.Error("[Net] Bad message (%d bytes): %s", len(msg), dbg)
+	b.logger.Error("[Net] Bad message (%d bytes): %s", len(msg), dbg)
 }
 
-func handleMessage(conn net.Conn, msgBytes []byte, msg *cellaserv.Message) error {
+func (b *Broker) handleMessage(conn net.Conn, msgBytes []byte, msg *cellaserv.Message) error {
 	var err error
 
 	// Parse and process message payload
@@ -164,112 +156,103 @@ func handleMessage(conn net.Conn, msgBytes []byte, msg *cellaserv.Message) error
 		register := &cellaserv.Register{}
 		err = proto.Unmarshal(msgContent, register)
 		if err != nil {
-			logUnmarshalError(msgContent)
+			b.logUnmarshalError(msgContent)
 			return fmt.Errorf("Could not unmarshal register: %s", err)
 		}
-		handleRegister(conn, register)
+		b.handleRegister(conn, register)
 		return nil
 	case cellaserv.Message_Request:
 		request := &cellaserv.Request{}
 		err = proto.Unmarshal(msgContent, request)
 		if err != nil {
-			logUnmarshalError(msgContent)
+			b.logUnmarshalError(msgContent)
 			return fmt.Errorf("Could not unmarshal request: %s", err)
 		}
-		handleRequest(conn, msgBytes, request)
+		b.handleRequest(conn, msgBytes, request)
 		return nil
 	case cellaserv.Message_Reply:
 		reply := &cellaserv.Reply{}
 		err = proto.Unmarshal(msgContent, reply)
 		if err != nil {
-			logUnmarshalError(msgContent)
+			b.logUnmarshalError(msgContent)
 			return fmt.Errorf("Could not unmarshal reply: %s", err)
 		}
-		handleReply(conn, msgBytes, reply)
+		b.handleReply(conn, msgBytes, reply)
 		return nil
 	case cellaserv.Message_Subscribe:
 		sub := &cellaserv.Subscribe{}
 		err = proto.Unmarshal(msgContent, sub)
 		if err != nil {
-			logUnmarshalError(msgContent)
+			b.logUnmarshalError(msgContent)
 			return fmt.Errorf("Could not unmarshal subscribe: %s", err)
 		}
-		handleSubscribe(conn, sub)
+		b.handleSubscribe(conn, sub)
 		return nil
 	case cellaserv.Message_Publish:
 		pub := &cellaserv.Publish{}
 		err = proto.Unmarshal(msgContent, pub)
 		if err != nil {
-			logUnmarshalError(msgContent)
+			b.logUnmarshalError(msgContent)
 			return fmt.Errorf("Could not unmarshal publish: %s", err)
 		}
-		handlePublish(conn, msgBytes, pub)
+		b.handlePublish(conn, msgBytes, pub)
 		return nil
 	default:
 		return fmt.Errorf("Unknown message type: %d", *msg.Type)
 	}
 }
 
-func setup() {
-	// Get main logger
-	log = common.GetLog()
-
-	// Initialize our maps
-	connNameMap = make(map[net.Conn]string)
-	connSpies = make(map[net.Conn][]*service)
-	services = make(map[string]map[string]*service)
-	servicesConn = make(map[net.Conn][]*service)
-	reqIds = make(map[uint64]*requestTracking)
-	subscriberMap = make(map[string][]net.Conn)
-	subscriberMatchMap = make(map[string][]net.Conn)
-	connList = list.New()
-
-	// Configure CPU profiling, stopped when cellaserv receive the kill request
-	setupProfiling()
-}
-
-// ListenAndServe starts the cellaserv broker
-func ListenAndServe(sockAddrListen string) error {
-	setup()
-
+// listenAndServe starts the cellaserv broker
+func (b *Broker) listenAndServe(sockAddrListen string) error {
 	// Create TCP listenener for incoming connections
 	var err error
-	mainListener, err = net.Listen("tcp", sockAddrListen)
+	b.mainListener, err = net.Listen("tcp", sockAddrListen)
 	if err != nil {
-		log.Error("[Net] Could not listen: %s", err)
+		b.logger.Error("[Net] Could not listen: %s", err)
 		return err
 	}
 
-	log.Info("[Net] Listening on %s", sockAddrListen)
+	b.logger.Info("[Net] Listening on %s", sockAddrListen)
 
 	// Handle new connections
 	for {
-		conn, err := mainListener.Accept()
+		conn, err := b.mainListener.Accept()
 		nerr, ok := err.(net.Error)
 		if ok {
 			if nerr.Temporary() {
-				log.Warning("[Net] Could not accept: %s", err)
+				b.logger.Warning("[Net] Could not accept: %s", err)
 				time.Sleep(10 * time.Millisecond)
 				continue
 			} else {
-				log.Error("[Net] Connection unavailable: %s", err)
+				b.logger.Error("[Net] Connection unavailable: %s", err)
 				break
 			}
 		}
 
-		go handle(conn)
+		go b.handle(conn)
 	}
 
 	return nil
 }
 
 func (b *Broker) Run(ctx context.Context) error {
-	return ListenAndServe(b.Options.ListenAddress)
+	// Configure CPU profiling, stopped when cellaserv receive the kill request
+	b.setupProfiling()
+
+	return b.listenAndServe(b.Options.ListenAddress)
 }
 
 func New(logger *logging.Logger, options *Options) *Broker {
 	return &Broker{
-		logger:  logger,
-		Options: options,
+		logger:             logger,
+		Options:            options,
+		connNameMap:        make(map[net.Conn]string),
+		connSpies:          make(map[net.Conn][]*service),
+		Services:           make(map[string]map[string]*service),
+		servicesConn:       make(map[net.Conn][]*service),
+		reqIds:             make(map[uint64]*requestTracking),
+		subscriberMap:      make(map[string][]net.Conn),
+		subscriberMatchMap: make(map[string][]net.Conn),
+		connList:           list.New(),
 	}
 }

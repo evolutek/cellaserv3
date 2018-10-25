@@ -22,12 +22,12 @@ func connToJSON(conn net.Conn) []byte {
 }
 
 // connDesribe returns all the information cellaserv have on the connection
-func connDescribe(conn net.Conn) string {
-	if name, ok := connNameMap[conn]; ok {
+func (b *Broker) connDescribe(conn net.Conn) string {
+	if name, ok := b.connNameMap[conn]; ok {
 		return name
 	}
 
-	services, ok := servicesConn[conn]
+	services, ok := b.servicesConn[conn]
 	if !ok {
 		// This connection is not associated with a service
 		return conn.RemoteAddr().String()
@@ -42,11 +42,11 @@ func connDescribe(conn net.Conn) string {
 
 // Send utils
 
-func sendReply(conn net.Conn, req *cellaserv.Request, data []byte) {
+func (b *Broker) sendReply(conn net.Conn, req *cellaserv.Request, data []byte) {
 	rep := &cellaserv.Reply{Id: req.Id, Data: data}
 	repBytes, err := proto.Marshal(rep)
 	if err != nil {
-		log.Error("[Message] Could not marshal outgoing reply")
+		b.logger.Error("[Message] Could not marshal outgoing reply")
 	}
 
 	msgType := cellaserv.Message_Reply
@@ -55,7 +55,7 @@ func sendReply(conn net.Conn, req *cellaserv.Request, data []byte) {
 	common.SendMessage(conn, msg)
 }
 
-func sendReplyError(conn net.Conn, req *cellaserv.Request, errType cellaserv.Reply_Error_Type) {
+func (b *Broker) sendReplyError(conn net.Conn, req *cellaserv.Request, errType cellaserv.Reply_Error_Type) {
 	err := &cellaserv.Reply_Error{Type: &errType}
 
 	reply := &cellaserv.Reply{Error: err, Id: req.Id}

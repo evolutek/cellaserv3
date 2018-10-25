@@ -9,24 +9,24 @@ import (
 	"github.com/evolutek/cellaserv3/common"
 )
 
-func handlePublish(conn net.Conn, msgBytes []byte, pub *cellaserv.Publish) {
-	log.Info("[Publish] %s publishes %s", connDescribe(conn), *pub.Event)
-	doPublish(msgBytes, pub)
+func (b *Broker) handlePublish(conn net.Conn, msgBytes []byte, pub *cellaserv.Publish) {
+	b.logger.Info("[Publish] %s publishes %s", b.connDescribe(conn), *pub.Event)
+	b.doPublish(msgBytes, pub)
 }
 
-func doPublish(msgBytes []byte, pub *cellaserv.Publish) {
+func (b *Broker) doPublish(msgBytes []byte, pub *cellaserv.Publish) {
 	event := *pub.Event
 
 	// Logging
-	log.Debug("[Publish] Publishing %s", event)
+	b.logger.Debug("[Publish] Publishing %s", event)
 
 	// Handle log publishes
-	if strings.HasPrefix(event, "log.") {
+	if strings.HasPrefix(event, "b.logger.") {
 		var data string
 		if pub.Data != nil {
 			data = string(pub.Data)
 		}
-		event := (*pub.Event)[4:] // Strip 'log.' prefix
+		event := (*pub.Event)[4:] // Strip 'b.logger.' prefix
 		common.LogEvent(event, data)
 	}
 
@@ -34,7 +34,7 @@ func doPublish(msgBytes []byte, pub *cellaserv.Publish) {
 	var subs []net.Conn
 
 	// Handle glob susbscribers
-	for pattern, cons := range subscriberMatchMap {
+	for pattern, cons := range b.subscriberMatchMap {
 		matched, _ := filepath.Match(pattern, event)
 		if matched {
 			subs = append(subs, cons...)
@@ -42,10 +42,10 @@ func doPublish(msgBytes []byte, pub *cellaserv.Publish) {
 	}
 
 	// Add exact matches
-	subs = append(subs, subscriberMap[event]...)
+	subs = append(subs, b.subscriberMap[event]...)
 
 	for _, connSub := range subs {
-		log.Debug("[Publish] Forwarding %s to %s", pub.GetEvent(), connDescribe(connSub))
+		b.logger.Debug("[Publish] Forwarding %s to %s", pub.GetEvent(), b.connDescribe(connSub))
 		common.SendRawMessage(connSub, msgBytes)
 	}
 }
