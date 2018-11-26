@@ -11,13 +11,13 @@ import (
 
 const (
 	// Logs sent by cellaserv
-	logCloseConnection = "b.logger.cellaserv.close-connection"
-	logConnRename      = "b.logger.cellaserv.connection-rename"
-	logLostService     = "b.logger.cellaserv.lost-service"
-	logLostSubscriber  = "b.logger.cellaserv.lost-subscriber"
-	logNewConnection   = "b.logger.cellaserv.new-connection"
-	logNewService      = "b.logger.cellaserv.new-service"
-	logNewSubscriber   = "b.logger.cellaserv.new-subscriber"
+	logCloseConnection = "log.cellaserv.close-connection"
+	logConnRename      = "log.cellaserv.connection-rename"
+	logLostService     = "log.cellaserv.lost-service"
+	logLostSubscriber  = "log.cellaserv.lost-subscriber"
+	logNewConnection   = "log.cellaserv.new-connection"
+	logNewService      = "log.cellaserv.new-service"
+	logNewSubscriber   = "log.cellaserv.new-subscriber"
 )
 
 // Send conn data as this struct
