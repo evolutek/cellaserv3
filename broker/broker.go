@@ -49,7 +49,7 @@ type Broker struct {
 
 // Manage incoming connexions
 func (b *Broker) handle(conn net.Conn) {
-	b.logger.Info("[Net] Connection opened: %s", b.connDescribe(conn))
+	b.logger.Info("[Broker] Connection opened: %s", b.connDescribe(conn))
 
 	connJSON := connToJSON(conn)
 	b.cellaservPublish(logNewConnection, connJSON)
@@ -64,7 +64,7 @@ func (b *Broker) handle(conn net.Conn) {
 			b.logger.Error("[Message] Receive: %s", err)
 		}
 		if closed {
-			b.logger.Info("[Net] Connection closed: %s", b.connDescribe(conn))
+			b.logger.Info("[Broker] Connection closed: %s", b.connDescribe(conn))
 			break
 		}
 		err = b.handleMessage(conn, msgBytes, msg)
@@ -142,7 +142,7 @@ func (b *Broker) logUnmarshalError(msg []byte) {
 	for _, b := range msg {
 		dbg = dbg + fmt.Sprintf("0x%02X ", b)
 	}
-	b.logger.Error("[Net] Bad message (%d bytes): %s", len(msg), dbg)
+	b.logger.Error("[Broker] Bad message (%d bytes): %s", len(msg), dbg)
 }
 
 func (b *Broker) handleMessage(conn net.Conn, msgBytes []byte, msg *cellaserv.Message) error {
@@ -208,11 +208,11 @@ func (b *Broker) listenAndServe(sockAddrListen string) error {
 	var err error
 	b.mainListener, err = net.Listen("tcp", sockAddrListen)
 	if err != nil {
-		b.logger.Error("[Net] Could not listen: %s", err)
+		b.logger.Error("[Broker] Could not listen: %s", err)
 		return err
 	}
 
-	b.logger.Info("[Net] Listening on %s", sockAddrListen)
+	b.logger.Info("[Broker] Listening on %s", sockAddrListen)
 
 	// Handle new connections
 	for {
@@ -220,11 +220,11 @@ func (b *Broker) listenAndServe(sockAddrListen string) error {
 		nerr, ok := err.(net.Error)
 		if ok {
 			if nerr.Temporary() {
-				b.logger.Warning("[Net] Could not accept: %s", err)
+				b.logger.Warning("[Broker] Could not accept: %s", err)
 				time.Sleep(10 * time.Millisecond)
 				continue
 			} else {
-				b.logger.Error("[Net] Connection unavailable: %s", err)
+				b.logger.Error("[Broker] Connection unavailable: %s", err)
 				break
 			}
 		}
