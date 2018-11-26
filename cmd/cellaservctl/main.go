@@ -1,9 +1,9 @@
+// Command line interface for cellaserv.
 package main
 
 import (
 	"encoding/json"
 	"fmt"
-	"regexp"
 	"strings"
 
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
@@ -14,26 +14,28 @@ import (
 )
 
 var (
-	request     = kingpin.Command("request", "Makes a request to a service.").Alias("r")
-	requestPath = request.Arg("path", "request path: service.method, service/id.method").Required().String()
-	requestArgs = request.Arg("args", "args for the method").StringMap()
+	request     = kingpin.Command("request", "Makes a request to a service. Alias: r").Alias("r")
+	requestPath = request.Arg("path", "Request path. Example service.method or service/id.method.").Required().String()
+	requestArgs = request.Arg("args", "Key=value arguments of the method. Example: x=42 y=43").StringMap()
 
-	publish      = kingpin.Command("publish", "Sends a publish event.").Alias("p")
-	publishEvent = publish.Arg("event", "The event name to publish.").Required().String()
-	publishArgs  = publish.Arg("args", "The content of event to publish.").StringMap()
+	publish      = kingpin.Command("publish", "Sends a publish event. Alias: p").Alias("p")
+	publishEvent = publish.Arg("event", "Event name to publish.").Required().String()
+	publishArgs  = publish.Arg("args", "Key=value content of event to publish. Example: x=42 y=43").StringMap()
 
-	subscribe        = kingpin.Command("subscribe", "Listens for an event.").Alias("s")
-	subscribeEvent   = subscribe.Arg("event", "Event name pattern to subscribe to.").Required().String()
-	subscribeMonitor = subscribe.Flag("monitor", "Instead of exiting after received a single event, execute indefinitely.").Short('m').Bool()
+	subscribe             = kingpin.Command("subscribe", "Listens for an event. Alias: s").Alias("s")
+	subscribeEventPattern = subscribe.Arg("event", "Event name pattern to subscribe to.").Required().String()
+	subscribeMonitor      = subscribe.Flag("monitor", "Instead of exiting after received a single event, wait indefinitely.").Short('m').Bool()
 
-	spy     = kingpin.Command("spy", "Listens to all requests and responses to a service.")
-	spyPath = spy.Arg("path", "spy path: service or service/id").Required().String()
+	spy     = kingpin.Command("spy", "Listens to all requests and responses of a service.")
+	spyPath = spy.Arg("path", "Spy path. Example service or service/id").Required().String()
 
-	listServices = kingpin.Command("list-services", "Lists services currently registered.").Alias("ls")
+	listServices = kingpin.Command("list-services", "Lists services currently registered. Alias: ls").Alias("ls")
 
-	listConnections = kingpin.Command("list-connections", "Lists connections currently established.").Alias("lc")
+	listConnections = kingpin.Command("list-connections", "Lists connections currently established. Alias: lc").Alias("lc")
 )
 
+// Extracts service and identification information from a request path
+// Supported syntaxes: service.method or service/identification.method
 func parseServicePath(path string) (string, string) {
 	pathSlice := strings.Split(path, ".")
 	service := pathSlice[0]
@@ -97,9 +99,7 @@ func main() {
 	case "publish":
 		conn.Publish(*publishEvent, *publishArgs)
 	case "subscribe":
-		eventPattern, err := regexp.Compile(*subscribeEvent)
-		kingpin.FatalIfError(err, "Invalid event name pattern: %s", *subscribeEvent)
-		err = conn.Subscribe(eventPattern,
+		err := conn.Subscribe(*subscribeEventPattern,
 			func(eventName string, eventBytes []byte) {
 				// Decode
 				var eventData interface{}

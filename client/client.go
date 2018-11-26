@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
-	"regexp"
+	"path/filepath"
 	"sync/atomic"
 	"time"
 
@@ -20,7 +20,7 @@ var log = common.GetLog()
 type subscriberHandler func(eventName string, eventData []byte)
 
 type subscriber struct {
-	eventPattern *regexp.Regexp
+	eventPattern string
 	handle       subscriberHandler
 }
 
@@ -167,8 +167,8 @@ func (c *client) handlePublish(pub *cellaserv.Publish) {
 	eventName := pub.GetEvent()
 	log.Info("[Publish] Received: %s", eventName)
 	for _, h := range c.subscribers {
-		if h.eventPattern.Match([]byte(eventName)) {
-			log.Debug("[Publish] %s is handled by %p ", eventName, *h)
+		if matched, _ := filepath.Match(h.eventPattern, eventName); matched {
+			log.Debug("[Publish] Handling %s", eventName)
 			h.handle(eventName, pub.GetData())
 		}
 	}
@@ -247,7 +247,7 @@ func (c *client) Publish(event string, data interface{}) {
 	// Serialize request payload
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
-		panic(fmt.Sprintf("Could not marshal to JSON: %v", data))
+		panic(fmt.Sprintf("Could not marshal publish data to JSON: %v", data))
 	}
 
 	// Prepare Publish message
@@ -266,21 +266,18 @@ func (c *client) Publish(event string, data interface{}) {
 	common.SendMessage(c.conn, msg)
 }
 
-func (c *client) Subscribe(eventPattern *regexp.Regexp, handler subscriberHandler) error {
-	// Get string representing the event regexp
-	eventPatternStr := eventPattern.String()
-
+func (c *client) Subscribe(eventPattern string, handler subscriberHandler) error {
 	// Create and add to subscriber map
 	s := &subscriber{
 		eventPattern: eventPattern,
 		handle:       handler,
 	}
-	log.Debug("[Subscribe] Adding %p to event pattern: %s", *s, eventPatternStr)
+	log.Info("[Subscribe] Subscribing to event pattern: %s", eventPattern)
 	c.subscribers = append(c.subscribers, s)
 
 	// Prepare subscribe message
 	msgType := cellaserv.Message_Subscribe
-	sub := &cellaserv.Subscribe{Event: &eventPatternStr}
+	sub := &cellaserv.Subscribe{Event: &eventPattern}
 	subBytes, err := proto.Marshal(sub)
 	if err != nil {
 		return fmt.Errorf("Could not marshal subscribe: %s", err)
