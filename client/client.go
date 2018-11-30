@@ -48,26 +48,26 @@ type client struct {
 
 func (c *client) sendRequestWaitForReply(req *cellaserv.Request) *cellaserv.Reply {
 	// Add message Id
-	*req.Id = atomic.AddUint64(&c.currentRequestId, 1)
+	req.Id = atomic.AddUint64(&c.currentRequestId, 1)
 	reqBytes, err := proto.Marshal(req)
 	if err != nil {
 		panic(fmt.Sprintf("Could not marshal request: %s", err))
 	}
 
-	if _, ok := c.requestsInFlight[*req.Id]; ok {
-		panic(fmt.Sprintf("Duplicate Request Id: %d", *req.Id))
+	if _, ok := c.requestsInFlight[req.Id]; ok {
+		panic(fmt.Sprintf("Duplicate Request Id: %d", req.Id))
 	}
 
 	// Track request id
-	c.requestsInFlight[*req.Id] = make(chan *cellaserv.Reply)
+	c.requestsInFlight[req.Id] = make(chan *cellaserv.Reply)
 
 	msgType := cellaserv.Message_Request
-	msg := cellaserv.Message{Type: &msgType, Content: reqBytes}
+	msg := cellaserv.Message{Type: msgType, Content: reqBytes}
 
 	common.SendMessage(c.conn, &msg)
 
 	// Wait for reply
-	return <-c.requestsInFlight[*req.Id]
+	return <-c.requestsInFlight[req.Id]
 }
 
 func (c *client) handleRequest(req *cellaserv.Request) error {
@@ -126,13 +126,13 @@ func (c *client) sendRequestReply(req *cellaserv.Request, replyData []byte, repl
 		// Add error info to reply
 		errString := replyErr.Error()
 		msgContent.Error = &cellaserv.Reply_Error{
-			Type: cellaserv.Reply_Error_Custom.Enum(),
-			What: &errString,
+			Type: cellaserv.Reply_Error_Custom,
+			What: errString,
 		}
 	}
 
 	msgContentBytes, _ := proto.Marshal(msgContent)
-	msg := &cellaserv.Message{Type: &msgType, Content: msgContentBytes}
+	msg := &cellaserv.Message{Type: msgType, Content: msgContentBytes}
 
 	common.SendMessage(c.conn, msg)
 }
@@ -178,7 +178,7 @@ func (c *client) handleMessage(msg *cellaserv.Message) error {
 	var err error
 
 	// Parse and process message payload
-	switch *msg.Type {
+	switch msg.Type {
 	case cellaserv.Message_Request:
 		request := &cellaserv.Request{}
 		err = proto.Unmarshal(msg.Content, request)
@@ -203,9 +203,9 @@ func (c *client) handleMessage(msg *cellaserv.Message) error {
 	case cellaserv.Message_Subscribe:
 		fallthrough
 	case cellaserv.Message_Register:
-		return fmt.Errorf("Client received unsupported message type: %d", *msg.Type)
+		return fmt.Errorf("Client received unsupported message type: %d", msg.Type)
 	default:
-		return fmt.Errorf("Unknown message type: %d", *msg.Type)
+		return fmt.Errorf("Unknown message type: %d", msg.Type)
 	}
 	return nil
 }
@@ -231,11 +231,11 @@ func (c *client) RegisterService(s *service) {
 	// Send register message to cellaserv
 	msgType := cellaserv.Message_Register
 	msgContent := &cellaserv.Register{
-		Name:           &s.Name,
-		Identification: &s.Identification,
+		Name:           s.Name,
+		Identification: s.Identification,
 	}
 	msgContentBytes, _ := proto.Marshal(msgContent)
-	msg := &cellaserv.Message{Type: &msgType, Content: msgContentBytes}
+	msg := &cellaserv.Message{Type: msgType, Content: msgContentBytes}
 	common.SendMessage(c.conn, msg)
 
 	log.Info("Service %s registered", s)
@@ -252,7 +252,7 @@ func (c *client) Publish(event string, data interface{}) {
 
 	// Prepare Publish message
 	pub := &cellaserv.Publish{
-		Event: &event,
+		Event: event,
 		Data:  dataBytes,
 	}
 	pubBytes, err := proto.Marshal(pub)
@@ -262,7 +262,7 @@ func (c *client) Publish(event string, data interface{}) {
 
 	// Send message
 	msgType := cellaserv.Message_Publish
-	msg := &cellaserv.Message{Type: &msgType, Content: pubBytes}
+	msg := &cellaserv.Message{Type: msgType, Content: pubBytes}
 	common.SendMessage(c.conn, msg)
 }
 
@@ -277,13 +277,13 @@ func (c *client) Subscribe(eventPattern string, handler subscriberHandler) error
 
 	// Prepare subscribe message
 	msgType := cellaserv.Message_Subscribe
-	sub := &cellaserv.Subscribe{Event: &eventPattern}
+	sub := &cellaserv.Subscribe{Event: eventPattern}
 	subBytes, err := proto.Marshal(sub)
 	if err != nil {
 		return fmt.Errorf("Could not marshal subscribe: %s", err)
 	}
 
-	msg := cellaserv.Message{Type: &msgType, Content: subBytes}
+	msg := cellaserv.Message{Type: msgType, Content: subBytes}
 
 	// Send subscribe message
 	common.SendMessage(c.conn, &msg)

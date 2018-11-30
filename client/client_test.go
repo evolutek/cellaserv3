@@ -79,13 +79,13 @@ func TestServiceStubRequest(t *testing.T) {
 		// Make reply
 		id := req.GetId()
 		reply := &cellaserv.Reply{
-			Id:   &id,
+			Id:   id,
 			Data: expectedReplyData,
 		}
 
 		msgContent, _ = proto.Marshal(reply)
 		msgType := cellaserv.Message_Reply
-		replyMsg := &cellaserv.Message{Type: &msgType, Content: msgContent}
+		replyMsg := &cellaserv.Message{Type: msgType, Content: msgContent}
 		common.SendMessage(server, replyMsg)
 	}()
 

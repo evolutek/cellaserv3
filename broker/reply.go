@@ -8,7 +8,7 @@ import (
 )
 
 func (b *Broker) handleReply(conn net.Conn, msgRaw []byte, rep *cellaserv.Reply) {
-	id := *rep.Id
+	id := rep.Id
 	b.logger.Info("[Reply] id:%d reply from %s", id, conn.RemoteAddr())
 
 	reqTrack, ok := b.reqIds[id]

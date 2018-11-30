@@ -33,10 +33,10 @@ func (s *serviceStub) Request(method string, data interface{}) ([]byte, error) {
 	// Create Request
 	req := &cellaserv.Request{
 		Data:                  dataBytes,
-		ServiceName:           &s.name,
-		ServiceIdentification: &s.identification,
-		Method:                &method,
-		Id:                    new(uint64),
+		ServiceName:           s.name,
+		ServiceIdentification: s.identification,
+		Method:                method,
+		// Id set by client
 	}
 
 	reply := s.client.sendRequestWaitForReply(req)

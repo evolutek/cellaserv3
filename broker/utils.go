@@ -50,20 +50,20 @@ func (b *Broker) sendReply(conn net.Conn, req *cellaserv.Request, data []byte) {
 	}
 
 	msgType := cellaserv.Message_Reply
-	msg := &cellaserv.Message{Type: &msgType, Content: repBytes}
+	msg := &cellaserv.Message{Type: msgType, Content: repBytes}
 
 	common.SendMessage(conn, msg)
 }
 
 func (b *Broker) sendReplyError(conn net.Conn, req *cellaserv.Request, errType cellaserv.Reply_Error_Type) {
-	err := &cellaserv.Reply_Error{Type: &errType}
+	err := &cellaserv.Reply_Error{Type: errType}
 
 	reply := &cellaserv.Reply{Error: err, Id: req.Id}
 	replyBytes, _ := proto.Marshal(reply)
 
 	msgType := cellaserv.Message_Reply
 	msg := &cellaserv.Message{
-		Type:    &msgType,
+		Type:    msgType,
 		Content: replyBytes,
 	}
 	common.SendMessage(conn, msg)

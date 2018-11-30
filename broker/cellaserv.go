@@ -184,7 +184,7 @@ func (b *Broker) handleVersion(conn net.Conn, req *cellaserv.Request) {
 
 // cellaservRequest dispatches requests for cellaserv.
 func (b *Broker) cellaservRequest(conn net.Conn, req *cellaserv.Request) {
-	switch *req.Method {
+	switch req.Method {
 	case "describe-conn", "describe_conn":
 		b.handleDescribeConn(conn, req)
 	case "list-connections", "list_connections":
@@ -206,7 +206,7 @@ func (b *Broker) cellaservRequest(conn net.Conn, req *cellaserv.Request) {
 
 // cellaservPublish sends a publish message from cellaserv
 func (b *Broker) cellaservPublish(event string, data []byte) {
-	pub := &cellaserv.Publish{Event: &event}
+	pub := &cellaserv.Publish{Event: event}
 	if data != nil {
 		pub.Data = data
 	}
@@ -216,7 +216,7 @@ func (b *Broker) cellaservPublish(event string, data []byte) {
 		return
 	}
 	msgType := cellaserv.Message_Publish
-	msg := &cellaserv.Message{Type: &msgType, Content: pubBytes}
+	msg := &cellaserv.Message{Type: msgType, Content: pubBytes}
 	msgBytes, err := proto.Marshal(msg)
 	if err != nil {
 		b.logger.Error("[Cellaserv] Could not marshal event")

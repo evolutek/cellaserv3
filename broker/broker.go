@@ -198,7 +198,7 @@ func (b *Broker) handleMessage(conn net.Conn, msgBytes []byte, msg *cellaserv.Me
 		b.handlePublish(conn, msgBytes, pub)
 		return nil
 	default:
-		return fmt.Errorf("Unknown message type: %d", *msg.Type)
+		return fmt.Errorf("Unknown message type: %d", msg.Type)
 	}
 }
 

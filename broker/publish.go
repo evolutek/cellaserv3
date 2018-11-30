@@ -10,12 +10,12 @@ import (
 )
 
 func (b *Broker) handlePublish(conn net.Conn, msgBytes []byte, pub *cellaserv.Publish) {
-	b.logger.Info("[Publish] %s publishes %s", b.connDescribe(conn), *pub.Event)
+	b.logger.Info("[Publish] %s publishes %s", b.connDescribe(conn), pub.Event)
 	b.doPublish(msgBytes, pub)
 }
 
 func (b *Broker) doPublish(msgBytes []byte, pub *cellaserv.Publish) {
-	event := *pub.Event
+	event := pub.Event
 
 	// Logging
 	b.logger.Debug("[Publish] Publishing %s", event)
@@ -26,7 +26,7 @@ func (b *Broker) doPublish(msgBytes []byte, pub *cellaserv.Publish) {
 		if pub.Data != nil {
 			data = string(pub.Data)
 		}
-		event := (*pub.Event)[4:] // Strip 'b.logger.' prefix
+		event := pub.Event[4:] // Strip 'log.' prefix
 		common.LogEvent(event, data)
 	}
 
