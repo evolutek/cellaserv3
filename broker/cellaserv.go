@@ -59,7 +59,7 @@ func (b *Broker) handleDescribeConn(conn net.Conn, req *cellaserv.Request) {
 	b.sendReply(conn, req, nil) // Empty reply
 }
 
-func (b *Broker) handleListServices(conn net.Conn, req *cellaserv.Request) {
+func (b *Broker) GetServiceList() []*ServiceJSON {
 	// Fix static empty slice that is "null" in JSON
 	// A dynamic empty slice is []
 	servicesList := make([]*ServiceJSON, 0)
@@ -68,7 +68,11 @@ func (b *Broker) handleListServices(conn net.Conn, req *cellaserv.Request) {
 			servicesList = append(servicesList, s.JSONStruct())
 		}
 	}
+	return servicesList
+}
 
+func (b *Broker) handleListServices(conn net.Conn, req *cellaserv.Request) {
+	servicesList := b.GetServiceList()
 	data, err := json.Marshal(servicesList)
 	if err != nil {
 		b.logger.Error("[Cellaserv] Could not marshal the services")
@@ -76,15 +80,19 @@ func (b *Broker) handleListServices(conn net.Conn, req *cellaserv.Request) {
 	b.sendReply(conn, req, data)
 }
 
-// handleListConnections replies with the list of currently connected clients
-func (b *Broker) handleListConnections(conn net.Conn, req *cellaserv.Request) {
+func (b *Broker) GetConnectionList() []ConnNameJSON {
 	var conns []ConnNameJSON
 	for c := b.connList.Front(); c != nil; c = c.Next() {
 		connElt := c.Value.(net.Conn)
 		conns = append(conns,
 			ConnNameJSON{connElt.RemoteAddr().String(), b.connDescribe(connElt)})
 	}
+	return conns
+}
 
+// handleListConnections replies with the list of currently connected clients
+func (b *Broker) handleListConnections(conn net.Conn, req *cellaserv.Request) {
+	conns := b.GetConnectionList()
 	data, err := json.Marshal(conns)
 	if err != nil {
 		b.logger.Error("[Cellaserv] Could not marshal the connections list")
@@ -92,9 +100,10 @@ func (b *Broker) handleListConnections(conn net.Conn, req *cellaserv.Request) {
 	b.sendReply(conn, req, data)
 }
 
-// handleListEvents replies with the list of subscribers
-func (b *Broker) handleListEvents(conn net.Conn, req *cellaserv.Request) {
-	events := make(map[string][]string)
+type EventInfoJSON map[string][]string
+
+func (b *Broker) GetSubscribersInfo() EventInfoJSON {
+	events := make(EventInfoJSON)
 
 	fillMap := func(subMap map[string][]net.Conn) {
 		for event, conns := range subMap {
@@ -105,10 +114,15 @@ func (b *Broker) handleListEvents(conn net.Conn, req *cellaserv.Request) {
 			events[event] = connSlice
 		}
 	}
-
 	fillMap(b.subscriberMap)
 	fillMap(b.subscriberMatchMap)
 
+	return events
+}
+
+// handleListEvents replies with the list of subscribers
+func (b *Broker) handleListEvents(conn net.Conn, req *cellaserv.Request) {
+	events := b.GetSubscribersInfo()
 	data, err := json.Marshal(events)
 	if err != nil {
 		b.logger.Error("[Cellaserv] Could not marshal the event list")

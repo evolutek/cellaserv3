@@ -1,0 +1,96 @@
+{{define "head"}}
+{{end}}
+
+{{define "content"}}
+<div class="d-flex flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+  <h1 class="h2">Overview</h1>
+</div>
+
+<div class="row">
+  <div class="col-md-3">
+    <h4 class="d-flex justify-content-between align-items-center">
+      <span data-feather="phone"></span>
+      Connections
+      <span class="badge badge-secondary">{{ len .Connections }}</span>
+    </h4>
+
+    <table class="table table-striped table">
+      <thead>
+	<tr>
+	  <th>Addr</th>
+	  <th>Name</th>
+	</tr>
+      </thead>
+      <tbody>
+	{{ range $index, $elt := .Connections }}
+	<tr>
+	  <td>{{ $elt.Addr }}</td>
+	  <td>{{ $elt.Name }}</td>
+	</tr>
+	{{ end }}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col-md-4">
+    <h4 class="d-flex justify-content-between align-items-center">
+      <span data-feather="grid"></span>
+      Services
+      <span class="badge badge-secondary">{{ len .Services }}</span>
+    </h4>
+
+    <table class="table table-striped table">
+      <thead>
+	<tr>
+	  <th>Name</th>
+	  <th>Id</th>
+	  <th>Actions</th>
+	</tr>
+      </thead>
+      <tbody>
+	{{ range $index, $elt := .Services }}
+	<tr>
+	  <td>{{ $elt.Name }}</td>
+	  <td>{{ or $elt.Identification "Ø" }}</td>
+	  <td>
+	    <span data-feather="activity"></span>
+	    <span data-feather="help-circle"></span>
+	    <span data-feather="send"></span>
+	    <span data-feather="radio"></span>
+	  </td>
+	</tr>
+	{{ end }}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col-md-5">
+    <h4 class="d-flex justify-content-between align-items-center">
+      <span data-feather="rss"></span>
+      Events
+      <span class="badge badge-secondary">{{ len .Events }}</span>
+    </h4>
+
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>Event</th>
+          <th>Subscribers</th>
+        </tr>
+      </thead>
+
+      <tbody class="animate">
+	{{ range $event, $subscribers := .Events }}
+	  {{ range $index, $sub := $subscribers }}
+	    <tr>
+	      {{ if (eq $index 0) }}<td rowspan="{{ len $subscribers }}">{{ $event }}</td>{{ end }}
+	      <td>{{ $sub }}</td>
+	    </tr>
+	  {{ end }}
+	{{ end }}
+      </tbody>
+
+    </table>
+  </div>
+</div>
+{{end}}

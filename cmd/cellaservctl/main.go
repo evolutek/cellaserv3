@@ -52,12 +52,14 @@ func parseServicePath(path string) (string, string) {
 	return service, identification
 }
 
+// Returns a string representation of a cellaserv.Request object.
 func requestToString(req *cellaserv.Request) string {
 	var reqData interface{}
 	_ = json.Unmarshal(req.GetData(), &reqData)
 	return fmt.Sprintf("%s/%s.%s(%v)", req.GetServiceName(), req.GetServiceIdentification(), req.GetMethod(), reqData)
 }
 
+// Returns a string representation of a cellaserv.Reply object
 func replyToString(rep *cellaserv.Reply) string {
 	var repData interface{}
 	_ = json.Unmarshal(rep.GetData(), &repData)
@@ -115,7 +117,9 @@ func main() {
 		kingpin.FatalIfError(err, "Could no subscribe")
 		<-conn.Quit()
 	case "spy":
+		// Parse args
 		service, identification := parseServicePath(*spyPath)
+		// Setup spy with callback
 		conn.Spy(service, identification,
 			func(req *cellaserv.Request, rep *cellaserv.Reply) {
 				fmt.Printf("%s: %s\n", requestToString(req),
@@ -123,7 +127,7 @@ func main() {
 			})
 		<-conn.Quit()
 	case "list-services":
-		// Create stub
+		// Create service stub
 		stub := client.NewServiceStub(conn, "cellaserv", "")
 		// Make request
 		respBytes, err := stub.Request("list-services", nil)
@@ -141,7 +145,7 @@ func main() {
 			fmt.Print("\n")
 		}
 	case "list-connections":
-		// Create stub
+		// Create service stub
 		stub := client.NewServiceStub(conn, "cellaserv", "")
 		// Make request
 		respBytes, err := stub.Request("list-connections", nil)

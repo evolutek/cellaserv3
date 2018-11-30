@@ -39,12 +39,23 @@ func main() {
 
 	common.LogSetup()
 
+	// Broker component
 	brokerOptions := &broker.Options{
 		ListenAddress: *sockAddrListenFlag,
 	}
 	broker := broker.New(logging.MustGetLogger("broker"), brokerOptions)
 
-	webHander := web.New(logging.MustGetLogger("web"), broker)
+	// Web component
+	webOptions := &web.Options{
+		// Assume that the broker is running from the directory where
+		// this file is.
+		TemplatesPath: "../../broker/web/ui/templates/",
+		StaticsPath:   "../../broker/web/ui/static/",
+
+		// Default: no path prefix
+		ExternalURLPath: "",
+	}
+	webHander := web.New(webOptions, logging.MustGetLogger("web"), broker)
 
 	// Contexts
 	ctxBroker, cancelBroker := context.WithCancel(context.Background())
