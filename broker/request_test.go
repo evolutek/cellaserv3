@@ -12,7 +12,7 @@ import (
 )
 
 func TestRequestToService(t *testing.T) {
-	brokerTest(t, func() {
+	brokerTest(t, func(b *Broker) {
 		connService := testutil.Dial(t)
 		defer connService.Close()
 
@@ -82,14 +82,39 @@ func TestRequestToService(t *testing.T) {
 }
 
 func TestRequestNoService(t *testing.T) {
-	brokerTest(t, func() {
+	brokerTest(t, func(b *Broker) {
 		conn := testutil.Dial(t)
 		defer conn.Close()
 
 		var payload []byte
-		msg := testutil.MakeMessageRequest(t, "foo", "bar", "lol", payload)
-		conn.Write(msg)
+		msgRequest := testutil.MakeMessageRequest(t, "foo", "bar", "lol", payload)
+		conn.Write(msgRequest)
 
-		time.Sleep(50 * time.Millisecond)
+		// The client receives reply
+		closed, _, msg, err := common.RecvMessage(conn)
+		if closed || err != nil {
+			t.Error(err)
+			return
+		}
+
+		if msg.GetType() != cellaserv.Message_Reply {
+			t.Error("Wrong message type:", msg.GetType())
+			return
+		}
+		msgReply := &cellaserv.Reply{}
+		msgContent := msg.GetContent()
+		if err = proto.Unmarshal(msgContent, msgReply); err != nil {
+			t.Error("Could not unmarshal message content:", err)
+			return
+		}
+		msgError := msgReply.GetError()
+		if msgError == nil {
+			t.Error("Expected error, got nil")
+			return
+		}
+		if msgError.GetType() != cellaserv.Reply_Error_NoSuchService {
+			t.Error("Expected NoSuchService error, got:", msgError.GetType().String())
+			return
+		}
 	})
 }

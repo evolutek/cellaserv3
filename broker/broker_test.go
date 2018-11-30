@@ -1,28 +1,37 @@
 package broker
 
 import (
+	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/evolutek/cellaserv3/common"
+	logging "gopkg.in/op/go-logging.v1"
 )
-
-// listenAndServeForTest starts a broker on a predefined port
-func listenAndServeForTest(t *testing.T) {
-	if err := ListenAndServe(":4200"); err != nil {
-		t.Error(err)
-	}
-}
 
 // brokerTest is a test harness for testing the broker. It takes care of
 // setting up the server, and shutting it down when testing is over.
-func brokerTest(t *testing.T, testFn func()) {
+func brokerTest(t *testing.T, testFn func(b *Broker)) {
+	ctxBroker, cancelBroker := context.WithCancel(context.Background())
+	brokerOptions := &Options{ListenAddress: ":4200"}
+	broker := New(logging.MustGetLogger("broker"), brokerOptions)
+
 	go func() {
-		defer handleShutdown()
-		testFn()
+		err := broker.Run(ctxBroker)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}()
 
-	listenAndServeForTest(t)
+	// Give time to the broker to start
+	time.Sleep(50 * time.Millisecond)
+
+	testFn(broker)
+	time.Sleep(50 * time.Millisecond)
+
+	cancelBroker()
+	time.Sleep(50 * time.Millisecond)
 }
 
 // TestMain is called at the begining of the test suite.

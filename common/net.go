@@ -36,6 +36,7 @@ func SendRawMessage(conn net.Conn, msg []byte) {
 	}
 }
 
+// RecvMessage reads and return a cellaserv message from an open connection.
 func RecvMessage(conn net.Conn) (closed bool, msgBytes []byte, msg *cellaserv.Message, err error) {
 	// Read message length as uint32
 	var msgLen uint32

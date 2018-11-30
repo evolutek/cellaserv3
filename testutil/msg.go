@@ -17,7 +17,7 @@ func makeMessage(t *testing.T, msgType cellaserv.Message_MessageType, msgContent
 	if err != nil {
 		t.Fatal("Protobuf marshalling error:", err)
 	}
-	msg := &cellaserv.Message{Type: &msgType, Content: msgContentBytes}
+	msg := &cellaserv.Message{Type: msgType, Content: msgContentBytes}
 	return MessageForNetwork(t, msg)
 }
 
@@ -41,15 +41,15 @@ func MessageForNetwork(t *testing.T, msg *cellaserv.Message) []byte {
 func MakeMessageRegister(t *testing.T, serviceName string, serviceIdent string) []byte {
 	msgType := cellaserv.Message_Register
 	msgContent := &cellaserv.Register{
-		Name:           &serviceName,
-		Identification: &serviceIdent,
+		Name:           serviceName,
+		Identification: serviceIdent,
 	}
 	return makeMessage(t, msgType, msgContent)
 }
 
 func MakeMessagePublish(t *testing.T, topic string) []byte {
 	msgType := cellaserv.Message_Publish
-	msgContent := &cellaserv.Publish{Event: &topic}
+	msgContent := &cellaserv.Publish{Event: topic}
 	return makeMessage(t, msgType, msgContent)
 }
 
@@ -57,11 +57,11 @@ func MakeMessageRequest(t *testing.T, service string, ident string, method strin
 	msgType := cellaserv.Message_Request
 	msgId := atomic.AddUint64(&NextMessageRequestId, 1)
 	msgContent := &cellaserv.Request{
-		ServiceIdentification: &ident,
-		ServiceName:           &service,
-		Method:                &method,
+		ServiceIdentification: ident,
+		ServiceName:           service,
+		Method:                method,
 		Data:                  payload,
-		Id:                    &msgId,
+		Id:                    msgId,
 	}
 	return makeMessage(t, msgType, msgContent)
 }
@@ -69,7 +69,7 @@ func MakeMessageRequest(t *testing.T, service string, ident string, method strin
 func MakeMessageReply(t *testing.T, msgId uint64, payload []byte) []byte {
 	msgType := cellaserv.Message_Reply
 	msgContent := &cellaserv.Reply{
-		Id:   &msgId,
+		Id:   msgId,
 		Data: payload,
 	}
 	return makeMessage(t, msgType, msgContent)

@@ -19,12 +19,9 @@ type Options struct {
 }
 
 type Broker struct {
-	logger *logging.Logger
-
 	Options *Options
 
-	// Socket where all incoming connections go
-	mainListener net.Listener
+	logger *logging.Logger
 
 	// List of all currently handled connections
 	connList *list.List
@@ -45,6 +42,9 @@ type Broker struct {
 	reqIds             map[uint64]*requestTracking
 	subscriberMap      map[string][]net.Conn
 	subscriberMatchMap map[string][]net.Conn
+
+	// The broker must quit
+	quitCh chan struct{}
 }
 
 // Manage incoming connexions
@@ -202,21 +202,10 @@ func (b *Broker) handleMessage(conn net.Conn, msgBytes []byte, msg *cellaserv.Me
 	}
 }
 
-// listenAndServe starts the cellaserv broker
-func (b *Broker) listenAndServe(sockAddrListen string) error {
-	// Create TCP listenener for incoming connections
-	var err error
-	b.mainListener, err = net.Listen("tcp", sockAddrListen)
-	if err != nil {
-		b.logger.Error("[Broker] Could not listen: %s", err)
-		return err
-	}
-
-	b.logger.Info("[Broker] Listening on %s", sockAddrListen)
-
-	// Handle new connections
+// Handles incoming connections
+func (b *Broker) serve(l net.Listener) error {
 	for {
-		conn, err := b.mainListener.Accept()
+		conn, err := l.Accept()
 		nerr, ok := err.(net.Error)
 		if ok {
 			if nerr.Temporary() {
@@ -224,28 +213,45 @@ func (b *Broker) listenAndServe(sockAddrListen string) error {
 				time.Sleep(10 * time.Millisecond)
 				continue
 			} else {
-				b.logger.Error("[Broker] Connection unavailable: %s", err)
-				break
+				return err
 			}
 		}
-
 		go b.handle(conn)
 	}
-
 	return nil
 }
 
 func (b *Broker) Run(ctx context.Context) error {
-	// Configure CPU profiling, stopped when cellaserv receive the kill request
-	b.setupProfiling()
+	// Create TCP listenener for incoming connections
+	l, err := net.Listen("tcp", b.Options.ListenAddress)
+	defer l.Close()
+	if err != nil {
+		b.logger.Error("[Broker] Could not listen: %s", err)
+		return err
+	}
 
-	return b.listenAndServe(b.Options.ListenAddress)
+	b.logger.Info("[Broker] Listening on %s", b.Options.ListenAddress)
+
+	errCh := make(chan error)
+	go func() {
+		errCh <- b.serve(l)
+	}()
+
+	select {
+	case e := <-errCh:
+		return e
+	case <-b.quitCh:
+		return nil
+	case <-ctx.Done():
+		return nil
+	}
 }
 
 func New(logger *logging.Logger, options *Options) *Broker {
 	return &Broker{
-		logger:             logger,
-		Options:            options,
+		Options: options,
+		logger:  logger,
+
 		connNameMap:        make(map[net.Conn]string),
 		connSpies:          make(map[net.Conn][]*service),
 		Services:           make(map[string]map[string]*service),
@@ -254,5 +260,6 @@ func New(logger *logging.Logger, options *Options) *Broker {
 		subscriberMap:      make(map[string][]net.Conn),
 		subscriberMatchMap: make(map[string][]net.Conn),
 		connList:           list.New(),
+		quitCh:             make(chan struct{}),
 	}
 }

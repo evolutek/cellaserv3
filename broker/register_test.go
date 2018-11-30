@@ -7,8 +7,8 @@ import (
 	"github.com/evolutek/cellaserv3/testutil"
 )
 
-func serviceIsRegistered(t *testing.T, serviceName string, serviceIdent string) {
-	idents, found := services[serviceName]
+func serviceIsRegistered(b *Broker, t *testing.T, serviceName string, serviceIdent string) {
+	idents, found := b.Services[serviceName]
 	if !found {
 		t.Fail()
 		return
@@ -20,7 +20,7 @@ func serviceIsRegistered(t *testing.T, serviceName string, serviceIdent string) 
 }
 
 func TestRegister(t *testing.T) {
-	brokerTest(t, func() {
+	brokerTest(t, func(b *Broker) {
 		conn := testutil.Dial(t)
 		defer conn.Close()
 
@@ -33,12 +33,12 @@ func TestRegister(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 
 		// The service is registered
-		serviceIsRegistered(t, serviceName, serviceIdent)
+		serviceIsRegistered(b, t, serviceName, serviceIdent)
 	})
 }
 
 func TestRegisterReplace(t *testing.T) {
-	brokerTest(t, func() {
+	brokerTest(t, func(b *Broker) {
 		conn := testutil.Dial(t)
 		defer conn.Close()
 
@@ -54,7 +54,7 @@ func TestRegisterReplace(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 
 		// The new service has replaced the old one
-		serviceIsRegistered(t, serviceName, serviceIdent)
+		serviceIsRegistered(b, t, serviceName, serviceIdent)
 
 		// Register the service again, with a different connection
 		conn2 := testutil.Dial(t)
@@ -64,6 +64,6 @@ func TestRegisterReplace(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 
 		// The new service has replaced the old one
-		serviceIsRegistered(t, serviceName, serviceIdent)
+		serviceIsRegistered(b, t, serviceName, serviceIdent)
 	})
 }
