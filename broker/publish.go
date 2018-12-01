@@ -21,7 +21,7 @@ func (b *Broker) doPublish(msgBytes []byte, pub *cellaserv.Publish) {
 	b.logger.Debug("[Publish] Publishing %s", event)
 
 	// Handle log publishes
-	if strings.HasPrefix(event, "b.logger.") {
+	if strings.HasPrefix(event, "log.") {
 		var data string
 		if pub.Data != nil {
 			data = string(pub.Data)
