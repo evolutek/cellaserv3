@@ -98,3 +98,19 @@ body {
   border-color: transparent;
   box-shadow: 0 0 0 3px rgba(255, 255, 255, .25);
 }
+
+/*
+ * Overview
+ */
+
+.btn-group-sm>.btn, .btn-service-action {
+  padding: .15rem .3rem;
+  font-size: .875rem;
+  line-height: 1.5;
+  border-radius: .2rem;
+}
+
+td.service-action {
+  padding-top: .6rem;
+  padding-bottom: .3rem;
+}

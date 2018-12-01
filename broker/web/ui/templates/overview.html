@@ -52,11 +52,20 @@
 	<tr>
 	  <td>{{ $elt.Name }}</td>
 	  <td>{{ or $elt.Identification "Ø" }}</td>
-	  <td>
-	    <span data-feather="activity"></span>
-	    <span data-feather="help-circle"></span>
-	    <span data-feather="send"></span>
-	    <span data-feather="radio"></span>
+	  <td class="service-action">
+	    <button type="button" class="btn btn-secondary btn-service-action">
+	      <span data-feather="activity"></span>
+	    </button>
+	    <button type="button" class="btn btn-secondary btn-service-action">
+	      <span data-feather="radio"></span>
+	    </button>
+	    <button type="button" class="btn btn-secondary btn-service-action">
+	      <span data-feather="send"></span>
+	    </button>
+	    <button type="button" class="btn btn-secondary btn-service-action">
+	      <span data-feather="help-circle"></span>
+	    </button>
+
 	  </td>
 	</tr>
 	{{ end }}
