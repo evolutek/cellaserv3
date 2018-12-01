@@ -24,11 +24,30 @@ var (
 	addrListenFlag     = flag.String("listen-addr", ":4200", "listening address of the server")
 	httpAddrListenFlag = flag.String("http-listen-addr", ":4280", "listening address of the internal HTTP server")
 	httpAssetsRootFlag = flag.String("http-assets-root", "/usr/share/cellaserv/http", "location of the http assets")
+	httpExternalUrl    = flag.String("http-external-url", "", "prefix of the web component URLs")
 )
 
 func versionAndDie() {
 	fmt.Println("cellaserv3 version", common.Version)
 	os.Exit(0)
+}
+
+func locateHttpAssets() string {
+	locations := []string{
+		*httpAssetsRootFlag,
+		"broker/web/ui",       // when started from repository root
+		"../../broker/web/ui", // when started from the location of this file
+	}
+	exists := func(path string) bool {
+		_, err := os.Stat(path)
+		return !os.IsNotExist(err)
+	}
+	for _, location := range locations {
+		if exists(location) {
+			return location
+		}
+	}
+	return *httpAssetsRootFlag
 }
 
 func main() {
@@ -49,10 +68,9 @@ func main() {
 
 	// Web component
 	webOptions := &web.Options{
-		ListenAddr: *httpAddrListenFlag,
-		AssetsPath: *httpAssetsRootFlag,
-		// Default: no path prefix
-		ExternalURLPath: "",
+		ListenAddr:      *httpAddrListenFlag,
+		AssetsPath:      locateHttpAssets(),
+		ExternalURLPath: *httpExternalUrl,
 	}
 	webHander := web.New(webOptions, logging.MustGetLogger("web"), broker)
 
