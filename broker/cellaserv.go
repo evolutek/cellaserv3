@@ -21,7 +21,7 @@ const (
 )
 
 // Send conn data as this struct
-type ConnNameJSON struct {
+type ConnectionJSON struct {
 	Addr string
 	Name string
 }
@@ -51,7 +51,7 @@ func (b *Broker) handleDescribeConn(conn net.Conn, req *cellaserv.Request) {
 	b.connNameMap[conn] = data.Name
 	newName := b.connDescribe(conn)
 
-	pubJSON, _ := json.Marshal(ConnNameJSON{conn.RemoteAddr().String(), newName})
+	pubJSON, _ := json.Marshal(ConnectionJSON{conn.RemoteAddr().String(), newName})
 	b.cellaservPublish(logConnRename, pubJSON)
 
 	b.logger.Debug("[Cellaserv] Describe %s as %s", conn.RemoteAddr(), data.Name)
@@ -59,20 +59,20 @@ func (b *Broker) handleDescribeConn(conn net.Conn, req *cellaserv.Request) {
 	b.sendReply(conn, req, nil) // Empty reply
 }
 
-func (b *Broker) GetServiceList() []*ServiceJSON {
+func (b *Broker) GetServicesJSON() []ServiceJSON {
 	// Fix static empty slice that is "null" in JSON
 	// A dynamic empty slice is []
-	servicesList := make([]*ServiceJSON, 0)
+	servicesList := make([]ServiceJSON, 0)
 	for _, names := range b.Services {
 		for _, s := range names {
-			servicesList = append(servicesList, s.JSONStruct())
+			servicesList = append(servicesList, *s.JSONStruct())
 		}
 	}
 	return servicesList
 }
 
 func (b *Broker) handleListServices(conn net.Conn, req *cellaserv.Request) {
-	servicesList := b.GetServiceList()
+	servicesList := b.GetServicesJSON()
 	data, err := json.Marshal(servicesList)
 	if err != nil {
 		b.logger.Error("[Cellaserv] Could not marshal the services")
@@ -80,19 +80,19 @@ func (b *Broker) handleListServices(conn net.Conn, req *cellaserv.Request) {
 	b.sendReply(conn, req, data)
 }
 
-func (b *Broker) GetConnectionList() []ConnNameJSON {
-	var conns []ConnNameJSON
+func (b *Broker) GetConnectionsJSON() []ConnectionJSON {
+	var conns []ConnectionJSON
 	for c := b.connList.Front(); c != nil; c = c.Next() {
 		connElt := c.Value.(net.Conn)
 		conns = append(conns,
-			ConnNameJSON{connElt.RemoteAddr().String(), b.connDescribe(connElt)})
+			ConnectionJSON{connElt.RemoteAddr().String(), b.connDescribe(connElt)})
 	}
 	return conns
 }
 
 // handleListConnections replies with the list of currently connected clients
 func (b *Broker) handleListConnections(conn net.Conn, req *cellaserv.Request) {
-	conns := b.GetConnectionList()
+	conns := b.GetConnectionsJSON()
 	data, err := json.Marshal(conns)
 	if err != nil {
 		b.logger.Error("[Cellaserv] Could not marshal the connections list")
@@ -100,10 +100,10 @@ func (b *Broker) handleListConnections(conn net.Conn, req *cellaserv.Request) {
 	b.sendReply(conn, req, data)
 }
 
-type EventInfoJSON map[string][]string
+type EventsJSON map[string][]string
 
-func (b *Broker) GetSubscribersInfo() EventInfoJSON {
-	events := make(EventInfoJSON)
+func (b *Broker) GetEventsJSON() EventsJSON {
+	events := make(EventsJSON)
 
 	fillMap := func(subMap map[string][]net.Conn) {
 		for event, conns := range subMap {
@@ -122,7 +122,7 @@ func (b *Broker) GetSubscribersInfo() EventInfoJSON {
 
 // handleListEvents replies with the list of subscribers
 func (b *Broker) handleListEvents(conn net.Conn, req *cellaserv.Request) {
-	events := b.GetSubscribersInfo()
+	events := b.GetEventsJSON()
 	data, err := json.Marshal(events)
 	if err != nil {
 		b.logger.Error("[Cellaserv] Could not marshal the event list")

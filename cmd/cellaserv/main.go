@@ -21,7 +21,9 @@ import (
 var (
 	// Command line flags
 	versionFlag        = flag.Bool("version", false, "output version information and exit")
-	sockAddrListenFlag = flag.String("listen-addr", ":4200", "listening address of the server")
+	addrListenFlag     = flag.String("listen-addr", ":4200", "listening address of the server")
+	httpAddrListenFlag = flag.String("http-listen-addr", ":4280", "listening address of the internal HTTP server")
+	httpAssetsRootFlag = flag.String("http-assets-root", "/usr/share/cellaserv/http", "location of the http assets")
 )
 
 func versionAndDie() {
@@ -41,17 +43,14 @@ func main() {
 
 	// Broker component
 	brokerOptions := &broker.Options{
-		ListenAddress: *sockAddrListenFlag,
+		ListenAddress: *addrListenFlag,
 	}
 	broker := broker.New(logging.MustGetLogger("broker"), brokerOptions)
 
 	// Web component
 	webOptions := &web.Options{
-		// Assume that the broker is running from the directory where
-		// this file is.
-		TemplatesPath: "../../broker/web/ui/templates/",
-		StaticsPath:   "../../broker/web/ui/static/",
-
+		ListenAddr: *httpAddrListenFlag,
+		AssetsPath: *httpAssetsRootFlag,
 		// Default: no path prefix
 		ExternalURLPath: "",
 	}

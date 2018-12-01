@@ -151,7 +151,7 @@ func main() {
 		respBytes, err := stub.Request("list-connections", nil)
 		kingpin.FatalIfError(err, "Request failed")
 		// Decode response
-		var connections []broker.ConnNameJSON
+		var connections []broker.ConnectionJSON
 		err = json.Unmarshal(respBytes, &connections)
 		kingpin.FatalIfError(err, "Unmarshal of reply data failed")
 		// Display connections
