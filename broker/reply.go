@@ -2,7 +2,6 @@ package broker
 
 import (
 	"net"
-	"time"
 
 	"bitbucket.org/evolutek/cellaserv2-protobuf"
 	"github.com/evolutek/cellaserv3/common"
@@ -20,8 +19,7 @@ func (b *Broker) handleReply(conn net.Conn, msgRaw []byte, rep *cellaserv.Reply)
 	delete(b.reqIds, id)
 
 	// Track reply latency
-	latency := time.Since(reqTrack.start).Round(time.Millisecond)
-	reqTrack.latencyObserver.Observe(float64(latency))
+	reqTrack.latencyObserver.ObserveDuration()
 
 	// Forward reply to spies
 	for _, spy := range reqTrack.spies {

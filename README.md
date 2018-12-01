@@ -83,7 +83,6 @@ TODO: document
 
 ## TODO
 
-* Rewrite built-in cellaserv service with cellaserv/client
 * prometheus monitoring
 
   * check django prometheus for ideas

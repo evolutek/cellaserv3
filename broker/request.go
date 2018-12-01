@@ -13,8 +13,7 @@ type requestTracking struct {
 	sender          net.Conn
 	timer           *time.Timer
 	spies           []net.Conn
-	start           time.Time
-	latencyObserver prometheus.Observer
+	latencyObserver *prometheus.Timer
 }
 
 func (b *Broker) handleRequest(conn net.Conn, msgRaw []byte, req *cellaserv.Request) {
@@ -61,7 +60,11 @@ func (b *Broker) handleRequest(conn net.Conn, msgRaw []byte, req *cellaserv.Requ
 	timer := time.AfterFunc(b.Options.RequestTimeoutSec*time.Second, handleTimeout)
 
 	// The ID is used to track the sender of the request
-	b.reqIds[id] = &requestTracking{conn, timer, srvc.Spies, time.Now(), b.monitoring.requests.WithLabelValues(req.GetServiceName(), req.GetServiceIdentification(), req.GetMethod())}
+	b.reqIds[id] = &requestTracking{
+		sender:          conn,
+		timer:           timer,
+		spies:           srvc.Spies,
+		latencyObserver: prometheus.NewTimer(b.Monitoring.requests.WithLabelValues(req.GetServiceName(), req.GetServiceIdentification(), req.GetMethod()))}
 
 	srvc.sendMessage(msgRaw)
 

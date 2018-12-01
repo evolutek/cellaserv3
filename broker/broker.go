@@ -12,7 +12,6 @@ import (
 	"github.com/evolutek/cellaserv3/common"
 	"github.com/golang/protobuf/proto"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	logging "gopkg.in/op/go-logging.v1"
 )
 
@@ -22,14 +21,16 @@ type Options struct {
 }
 
 type Monitoring struct {
+	Registry *prometheus.Registry
 	requests *prometheus.HistogramVec
 }
 
 type Broker struct {
+	Monitoring *Monitoring
+
 	Options *Options
 
-	logger     *logging.Logger
-	monitoring *Monitoring
+	logger *logging.Logger
 
 	// List of all currently handled connections
 	connList *list.List
@@ -261,8 +262,9 @@ func New(options *Options, logger *logging.Logger) *Broker {
 		options.RequestTimeoutSec = 5
 	}
 
-	monitoring := &Monitoring{
-		requests: promauto.NewHistogramVec(prometheus.HistogramOpts{
+	m := &Monitoring{
+		Registry: prometheus.NewRegistry(),
+		requests: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Namespace: "cellaserv",
 			Subsystem: "broker",
 			Name:      "requests",
@@ -273,7 +275,8 @@ func New(options *Options, logger *logging.Logger) *Broker {
 		Options: options,
 		logger:  logger,
 
-		monitoring:         monitoring,
+		Monitoring: m,
+
 		connNameMap:        make(map[net.Conn]string),
 		connSpies:          make(map[net.Conn][]*service),
 		services:           make(map[string]map[string]*service),
@@ -286,16 +289,17 @@ func New(options *Options, logger *logging.Logger) *Broker {
 	}
 
 	// Setup monitoring
-	promauto.NewGaugeFunc(prometheus.GaugeOpts{
+	m.Registry.MustRegister(m.requests)
+	m.Registry.MustRegister(prometheus.NewGaugeFunc(prometheus.GaugeOpts{
 		Namespace: "cellaserv",
 		Subsystem: "broker",
 		Name:      "connections",
-	}, func() float64 { return float64(broker.connList.Len()) })
-	promauto.NewGaugeFunc(prometheus.GaugeOpts{
+	}, func() float64 { return float64(broker.connList.Len()) }))
+	m.Registry.MustRegister(prometheus.NewGaugeFunc(prometheus.GaugeOpts{
 		Namespace: "cellaserv",
 		Subsystem: "broker",
 		Name:      "requests_pending",
-	}, func() float64 { return float64(len(broker.reqIds)) })
+	}, func() float64 { return float64(len(broker.reqIds)) }))
 
 	return broker
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/evolutek/cellaserv3/broker"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/route"
 	logging "gopkg.in/op/go-logging.v1"
@@ -91,7 +92,7 @@ func New(o *Options, logger *logging.Logger, broker *broker.Broker) *Handler {
 	})
 	router.Get("/overview", h.overview)
 	router.Get("/static/*filepath", route.FileServe(path.Join(o.AssetsPath, "static")))
-	router.Get("/metrics", promhttp.Handler().ServeHTTP)
+	router.Get("/metrics", promhttp.HandlerFor(prometheus.Gatherers{prometheus.DefaultGatherer, broker.Monitoring.Registry}, promhttp.HandlerOpts{}).ServeHTTP)
 
 	return h
 }
