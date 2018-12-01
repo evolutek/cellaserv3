@@ -6,12 +6,15 @@ import (
 
 	"bitbucket.org/evolutek/cellaserv2-protobuf"
 	"github.com/evolutek/cellaserv3/common"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type requestTracking struct {
-	sender net.Conn
-	timer  *time.Timer
-	spies  []net.Conn
+	sender          net.Conn
+	timer           *time.Timer
+	spies           []net.Conn
+	start           time.Time
+	latencyObserver prometheus.Observer
 }
 
 func (b *Broker) handleRequest(conn net.Conn, msgRaw []byte, req *cellaserv.Request) {
@@ -55,10 +58,10 @@ func (b *Broker) handleRequest(conn net.Conn, msgRaw []byte, req *cellaserv.Requ
 			b.sendReplyError(conn, req, cellaserv.Reply_Error_Timeout)
 		}
 	}
-	timer := time.AfterFunc(5*time.Second, handleTimeout)
+	timer := time.AfterFunc(b.Options.RequestTimeoutSec*time.Second, handleTimeout)
 
 	// The ID is used to track the sender of the request
-	b.reqIds[id] = &requestTracking{conn, timer, srvc.Spies}
+	b.reqIds[id] = &requestTracking{conn, timer, srvc.Spies, time.Now(), b.monitoring.requests.WithLabelValues(req.GetServiceName(), req.GetServiceIdentification(), req.GetMethod())}
 
 	srvc.sendMessage(msgRaw)
 

@@ -11,17 +11,25 @@ import (
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
 	"github.com/evolutek/cellaserv3/common"
 	"github.com/golang/protobuf/proto"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	logging "gopkg.in/op/go-logging.v1"
 )
 
 type Options struct {
-	ListenAddress string
+	ListenAddress     string
+	RequestTimeoutSec time.Duration
+}
+
+type Monitoring struct {
+	requests *prometheus.HistogramVec
 }
 
 type Broker struct {
 	Options *Options
 
-	logger *logging.Logger
+	logger     *logging.Logger
+	monitoring *Monitoring
 
 	// List of all currently handled connections
 	connList *list.List
@@ -248,10 +256,24 @@ func (b *Broker) Run(ctx context.Context) error {
 }
 
 func New(options *Options, logger *logging.Logger) *Broker {
-	return &Broker{
+	// Set default options
+	if options.RequestTimeoutSec == 0 {
+		options.RequestTimeoutSec = 5
+	}
+
+	monitoring := &Monitoring{
+		requests: promauto.NewHistogramVec(prometheus.HistogramOpts{
+			Namespace: "cellaserv",
+			Subsystem: "broker",
+			Name:      "requests",
+		}, []string{"service", "identification", "method"}),
+	}
+
+	broker := &Broker{
 		Options: options,
 		logger:  logger,
 
+		monitoring:         monitoring,
 		connNameMap:        make(map[net.Conn]string),
 		connSpies:          make(map[net.Conn][]*service),
 		services:           make(map[string]map[string]*service),
@@ -262,4 +284,18 @@ func New(options *Options, logger *logging.Logger) *Broker {
 		connList:           list.New(),
 		quitCh:             make(chan struct{}),
 	}
+
+	// Setup monitoring
+	promauto.NewGaugeFunc(prometheus.GaugeOpts{
+		Namespace: "cellaserv",
+		Subsystem: "broker",
+		Name:      "connections",
+	}, func() float64 { return float64(broker.connList.Len()) })
+	promauto.NewGaugeFunc(prometheus.GaugeOpts{
+		Namespace: "cellaserv",
+		Subsystem: "broker",
+		Name:      "requests_pending",
+	}, func() float64 { return float64(len(broker.reqIds)) })
+
+	return broker
 }
