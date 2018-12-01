@@ -47,6 +47,6 @@ func TestServiceRequest(t *testing.T) {
 	brokerOptions := &broker.Options{
 		ListenAddress: ":4200",
 	}
-	broker := broker.New(logging.MustGetLogger("test"), brokerOptions)
+	broker := broker.New(brokerOptions, logging.MustGetLogger("test"))
 	broker.Run(ctxBroker)
 }

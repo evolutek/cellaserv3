@@ -15,7 +15,7 @@ import (
 func brokerTest(t *testing.T, testFn func(b *Broker)) {
 	ctxBroker, cancelBroker := context.WithCancel(context.Background())
 	brokerOptions := &Options{ListenAddress: ":4200"}
-	broker := New(logging.MustGetLogger("broker"), brokerOptions)
+	broker := New(brokerOptions, logging.MustGetLogger("broker"))
 
 	go func() {
 		err := broker.Run(ctxBroker)

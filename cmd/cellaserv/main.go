@@ -45,7 +45,7 @@ func main() {
 	brokerOptions := &broker.Options{
 		ListenAddress: *addrListenFlag,
 	}
-	broker := broker.New(logging.MustGetLogger("broker"), brokerOptions)
+	broker := broker.New(brokerOptions, logging.MustGetLogger("broker"))
 
 	// Web component
 	webOptions := &web.Options{

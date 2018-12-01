@@ -247,7 +247,7 @@ func (b *Broker) Run(ctx context.Context) error {
 	}
 }
 
-func New(logger *logging.Logger, options *Options) *Broker {
+func New(options *Options, logger *logging.Logger) *Broker {
 	return &Broker{
 		Options: options,
 		logger:  logger,
