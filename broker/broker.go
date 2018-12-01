@@ -33,7 +33,7 @@ type Broker struct {
 	connSpies map[net.Conn][]*service
 
 	// Map of currently connected services by name, then identification
-	Services map[string]map[string]*service
+	services map[string]map[string]*service
 
 	// Map of all services associated with a connection
 	servicesConn map[net.Conn][]*service
@@ -85,7 +85,7 @@ func (b *Broker) handle(conn net.Conn) {
 		b.logger.Info("[Services] Remove %s", s)
 		pubJSON, _ := json.Marshal(s.JSONStruct())
 		b.cellaservPublish(logLostService, pubJSON)
-		delete(b.Services[s.Name], s.Identification)
+		delete(b.services[s.Name], s.Identification)
 
 		// Close connections that spied this service
 		for _, c := range s.Spies {
@@ -224,11 +224,11 @@ func (b *Broker) serve(l net.Listener) error {
 func (b *Broker) Run(ctx context.Context) error {
 	// Create TCP listenener for incoming connections
 	l, err := net.Listen("tcp", b.Options.ListenAddress)
-	defer l.Close()
 	if err != nil {
 		b.logger.Error("[Broker] Could not listen: %s", err)
 		return err
 	}
+	defer l.Close()
 
 	b.logger.Info("[Broker] Listening on %s", b.Options.ListenAddress)
 
@@ -254,7 +254,7 @@ func New(options *Options, logger *logging.Logger) *Broker {
 
 		connNameMap:        make(map[net.Conn]string),
 		connSpies:          make(map[net.Conn][]*service),
-		Services:           make(map[string]map[string]*service),
+		services:           make(map[string]map[string]*service),
 		servicesConn:       make(map[net.Conn][]*service),
 		reqIds:             make(map[uint64]*requestTracking),
 		subscriberMap:      make(map[string][]net.Conn),

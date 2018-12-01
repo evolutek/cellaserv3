@@ -20,16 +20,18 @@ func brokerTest(t *testing.T, testFn func(b *Broker)) {
 	go func() {
 		err := broker.Run(ctxBroker)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("Could not start broker: %s", err)
 		}
 	}()
 
 	// Give time to the broker to start
 	time.Sleep(50 * time.Millisecond)
 
+	// Run the test
 	testFn(broker)
 	time.Sleep(50 * time.Millisecond)
 
+	// Teardown broker
 	cancelBroker()
 	time.Sleep(50 * time.Millisecond)
 }

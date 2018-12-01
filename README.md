@@ -91,3 +91,8 @@ TODO: document
 * REST API
 * replace golang logging with recent op/go-logging
 * add back `CS_HOST`, `CS_PORT`, `CS_DEBUG`
+
+* client
+
+  * add config variables
+  * add service dependencies

@@ -373,6 +373,6 @@ func NewConnection(address string) *client {
 }
 
 func init() {
-	// Random is used to create a
+	// Random is used to create message ids
 	rand.Seed(time.Now().UnixNano())
 }

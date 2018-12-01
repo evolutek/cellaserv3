@@ -33,7 +33,7 @@ func (b *Broker) handleRequest(conn net.Conn, msgRaw []byte, req *cellaserv.Requ
 		return
 	}
 
-	idents, ok := b.Services[name]
+	idents, ok := b.services[name]
 	if !ok || len(idents) == 0 {
 		b.logger.Warning("[Request] id:%d No such service: %s", id, name)
 		b.sendReplyError(conn, req, cellaserv.Reply_Error_NoSuchService)

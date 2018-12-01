@@ -8,7 +8,7 @@ import (
 )
 
 func serviceIsRegistered(b *Broker, t *testing.T, serviceName string, serviceIdent string) {
-	idents, found := b.Services[serviceName]
+	idents, found := b.services[serviceName]
 	if !found {
 		t.Fail()
 		return

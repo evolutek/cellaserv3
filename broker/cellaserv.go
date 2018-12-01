@@ -63,7 +63,7 @@ func (b *Broker) GetServicesJSON() []ServiceJSON {
 	// Fix static empty slice that is "null" in JSON
 	// A dynamic empty slice is []
 	servicesList := make([]ServiceJSON, 0)
-	for _, names := range b.Services {
+	for _, names := range b.services {
 		for _, s := range names {
 			servicesList = append(servicesList, *s.JSONStruct())
 		}
@@ -146,7 +146,7 @@ func (b *Broker) handleSpy(conn net.Conn, req *cellaserv.Request) {
 		return
 	}
 
-	srvc, ok := b.Services[data.Service][data.Identification]
+	srvc, ok := b.services[data.Service][data.Identification]
 	if !ok {
 		b.logger.Warning("[Cellaserv] Could not spy, no such service: %s %s", data.Service,
 			data.Identification)

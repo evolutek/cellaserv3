@@ -13,12 +13,12 @@ func (b *Broker) handleRegister(conn net.Conn, msg *cellaserv.Register) {
 	ident := msg.GetIdentification()
 	b.logger.Info("[Services] New %s/%s", name, ident)
 
-	if _, ok := b.Services[name]; !ok {
-		b.Services[name] = make(map[string]*service)
+	if _, ok := b.services[name]; !ok {
+		b.services[name] = make(map[string]*service)
 	}
 
 	// Check for duplicate services
-	if s, ok := b.Services[name][ident]; ok {
+	if s, ok := b.services[name][ident]; ok {
 		b.logger.Warning("[Services] Replace %s", s)
 
 		pubJSON, _ := json.Marshal(s.JSONStruct())
@@ -40,12 +40,12 @@ func (b *Broker) handleRegister(conn net.Conn, msg *cellaserv.Register) {
 	} else {
 		// Sanity checks
 		if ident == "" {
-			if len(b.Services[name]) >= 1 {
+			if len(b.services[name]) >= 1 {
 				b.logger.Warning("[Service] New service have no identification but " +
 					"there is already a service with an identification.")
 			}
 		} else {
-			if _, ok = b.Services[name][""]; ok {
+			if _, ok = b.services[name][""]; ok {
 				b.logger.Warning("[Service] New service have an identification but " +
 					"there is already a service without an identification")
 			}
@@ -55,7 +55,7 @@ func (b *Broker) handleRegister(conn net.Conn, msg *cellaserv.Register) {
 	registeredService := newService(conn, name, ident)
 
 	// This makes all requests go to the new service
-	b.Services[name][ident] = registeredService
+	b.services[name][ident] = registeredService
 
 	// Keep track of origin connection in order to remove it when the connection is closed
 	b.servicesConn[conn] = append(b.servicesConn[conn], registeredService)

@@ -53,6 +53,12 @@ func MakeMessagePublish(t *testing.T, topic string) []byte {
 	return makeMessage(t, msgType, msgContent)
 }
 
+func MakeMessageSubscribe(t *testing.T, topic string) []byte {
+	msgType := cellaserv.Message_Subscribe
+	msgContent := &cellaserv.Subscribe{Event: topic}
+	return makeMessage(t, msgType, msgContent)
+}
+
 func MakeMessageRequest(t *testing.T, service string, ident string, method string, payload []byte) []byte {
 	msgType := cellaserv.Message_Request
 	msgId := atomic.AddUint64(&NextMessageRequestId, 1)
@@ -73,4 +79,10 @@ func MakeMessageReply(t *testing.T, msgId uint64, payload []byte) []byte {
 		Data: payload,
 	}
 	return makeMessage(t, msgType, msgContent)
+}
+
+func MsgTypeIs(t *testing.T, msg *cellaserv.Message, msgType cellaserv.Message_MessageType) {
+	if msg.GetType() != msgType {
+		t.Fatalf("Invalid message type, has: %s, expected %s", msg.GetType(), msgType)
+	}
 }

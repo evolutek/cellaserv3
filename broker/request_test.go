@@ -32,12 +32,8 @@ func TestRequestToService(t *testing.T) {
 		requestMsg := testutil.MakeMessageRequest(t, serviceName, serviceIdent, "method", payload)
 		connClient.Write(requestMsg)
 
-		// The service receives message
-		closed, _, msg, err := common.RecvMessage(connService)
-		if closed || err != nil {
-			t.Error(err)
-			return
-		}
+		// The service receives the request
+		msg := testutil.RecvMessage(t, connService)
 		if msg.GetType() != cellaserv.Message_Request {
 			t.Error("Unknown message type: ", msg.GetType())
 			return
@@ -46,7 +42,7 @@ func TestRequestToService(t *testing.T) {
 		// The service receives a request
 		msgRequest := &cellaserv.Request{}
 		msgContent := msg.GetContent()
-		if err = proto.Unmarshal(msgContent, msgRequest); err != nil {
+		if err := proto.Unmarshal(msgContent, msgRequest); err != nil {
 			t.Error("Could not unmarshal message content:", err)
 			return
 		}
@@ -56,19 +52,15 @@ func TestRequestToService(t *testing.T) {
 		replyMsgBytes := testutil.MakeMessageReply(t, msgRequest.GetId(), payloadReply)
 		connService.Write(replyMsgBytes)
 
-		// The client receives reply
-		closed, _, msg, err = common.RecvMessage(connClient)
-		if closed || err != nil {
-			t.Error(err)
-			return
-		}
+		// The client receives the reply
+		msg = testutil.RecvMessage(t, connClient)
 		if msg.GetType() != cellaserv.Message_Reply {
 			t.Error("Wrong message type:", msg.GetType())
 			return
 		}
 		msgReply := &cellaserv.Reply{}
 		msgContent = msg.GetContent()
-		if err = proto.Unmarshal(msgContent, msgReply); err != nil {
+		if err := proto.Unmarshal(msgContent, msgReply); err != nil {
 			t.Error("Could not unmarshal message content:", err)
 			return
 		}
