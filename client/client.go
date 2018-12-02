@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"os"
 	"path/filepath"
 	"sync/atomic"
 	"time"
@@ -13,6 +14,11 @@ import (
 	"github.com/evolutek/cellaserv3/broker"
 	"github.com/evolutek/cellaserv3/common"
 	"github.com/golang/protobuf/proto"
+)
+
+const (
+	defaultCellaservPort = "4200"
+	defaultCellaservHost = "localhost"
 )
 
 var log = common.GetLog()
@@ -362,9 +368,31 @@ func newClient(conn net.Conn) *client {
 	return c
 }
 
+type ClientOpts struct {
+	// Address of the cellaserv server
+	CellaservAddr string
+	// Name sent to cellaserv to describe the client
+	ClientName string
+}
+
 // NewConnection returns a Client instance connected to cellaserv or panics
-func NewConnection(address string) *client {
-	conn, err := net.Dial("tcp", address)
+func NewClient(opts ClientOpts) *client {
+	// Check cellaserv address
+	csAddr := opts.CellaservAddr
+	if csAddr == "" {
+		csHost := os.Getenv("CS_HOST")
+		if csHost == "" {
+			csHost = defaultCellaservHost
+		}
+		csPort := os.Getenv("CS_PORT")
+		if csPort == "" {
+			csPort = defaultCellaservPort
+		}
+		csAddr = fmt.Sprintf("%s:%s", csHost, csPort)
+	}
+
+	// Connect
+	conn, err := net.Dial("tcp", csAddr)
 	if err != nil {
 		panic(fmt.Errorf("Could not connect to cellaserv: %s", err))
 	}

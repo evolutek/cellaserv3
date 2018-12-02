@@ -11,7 +11,7 @@ var log = common.GetLog()
 
 func main() {
 	// Connect to cellaserv
-	conn := client.NewConnection(":4200")
+	conn := client.NewClient(client.ClientOpts{})
 
 	// Publish the date event every second
 	ticker := time.NewTicker(1 * time.Second)

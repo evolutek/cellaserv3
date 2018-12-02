@@ -68,7 +68,7 @@ func replyToString(rep *cellaserv.Reply) string {
 
 func main() {
 	// Connect to cellaserv
-	conn := client.NewConnection(":4200")
+	conn := client.NewClient(client.ClientOpts{})
 
 	switch kingpin.Parse() {
 	case "request":

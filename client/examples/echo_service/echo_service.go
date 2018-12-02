@@ -9,7 +9,7 @@ import (
 
 func main() {
 	// Connect to cellaserv
-	conn := client.NewConnection(":4200")
+	conn := client.NewClient(client.ClientOpts{})
 
 	// Prepare service for registration
 	echo := conn.NewService("echo", "")

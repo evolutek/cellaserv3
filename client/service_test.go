@@ -28,7 +28,8 @@ func TestServiceRequest(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	// Open connection
-	connService := NewConnection(":4201")
+	clientOpts := ClientOpts{CellaservAddr: ":4201"}
+	connService := NewClient(clientOpts)
 	// Prepare service for registration
 	dateService := connService.NewService("date", "")
 	// Handle "time" request
@@ -41,7 +42,7 @@ func TestServiceRequest(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	// Create service client connection
-	connRequest := NewConnection(":4201")
+	connRequest := NewClient(clientOpts)
 	dateServiceStub := NewServiceStub(connRequest, "date", "")
 
 	// Test valid method

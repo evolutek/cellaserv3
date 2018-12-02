@@ -11,7 +11,7 @@ var log = common.GetLog()
 
 func main() {
 	// Connect to cellaserv
-	conn := client.NewConnection(":4200")
+	conn := client.NewClient(client.ClientOpts{})
 	err := conn.Subscribe("date", func(eventName string, eventBytes []byte) {
 		// Decode
 		var eventData string

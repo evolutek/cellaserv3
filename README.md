@@ -83,13 +83,10 @@ TODO: document
 
 ## TODO
 
-* prometheus monitoring
-
-  * check django prometheus for ideas
-
+* prometheus monitoring in client
 * REST API
 * replace golang logging with recent op/go-logging
-* add back `CS_HOST`, `CS_PORT`, `CS_DEBUG`
+* add back `CS_DEBUG`
 
 * client
 

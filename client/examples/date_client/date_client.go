@@ -13,7 +13,7 @@ var log = common.GetLog()
 
 func main() {
 	// Connect to cellaserv
-	conn := client.NewConnection(":4200")
+	conn := client.NewClient(client.ClientOpts{})
 	// Create date service stub
 	date := client.NewServiceStub(conn, "date", "")
 	// Request date.time()
