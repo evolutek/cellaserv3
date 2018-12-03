@@ -4,11 +4,16 @@ import (
 	"context"
 	template "html/template"
 	template_text "html/template"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"path"
 
 	"github.com/evolutek/cellaserv3/broker"
+	"github.com/evolutek/cellaserv3/client"
+	"github.com/evolutek/cellaserv3/common"
 
+	"github.com/gorilla/websocket"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/route"
@@ -19,6 +24,7 @@ type Options struct {
 	ListenAddr      string
 	AssetsPath      string
 	ExternalURLPath string
+	BrokerAddr      string
 }
 
 // Handler represents the web component of cellaserv and holds references to
@@ -28,6 +34,81 @@ type Handler struct {
 	logger  *logging.Logger
 	router  *route.Router
 	broker  *broker.Broker
+}
+
+func (h *Handler) request(w http.ResponseWriter, r *http.Request) {
+	// Extract request parameters
+	service := route.Param(r.Context(), "service")
+	service, identification := common.ParseServicePath(service)
+	method := route.Param(r.Context(), "method")
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Create cellaserv client that connects locally
+	c := client.NewClient(client.ClientOpts{CellaservAddr: h.options.BrokerAddr})
+
+	// Make request
+	serviceStub := client.NewServiceStub(c, service, identification)
+	resp, err := serviceStub.Request(method, body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Write request
+	_, err = w.Write(resp)
+	if err != nil {
+		h.logger.Error("Could not write response: %s", err)
+	}
+}
+
+func (h *Handler) publish(w http.ResponseWriter, r *http.Request) {
+	// Extract request parameters
+	event := route.Param(r.Context(), "event")
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Create cellaserv client that connects locally
+	c := client.NewClient(client.ClientOpts{CellaservAddr: h.options.BrokerAddr})
+	c.Publish(event, body)
+}
+
+var upgrader = websocket.Upgrader{} // use default options
+
+// subscribe handles websocket subscribe
+func (h *Handler) subscribe(w http.ResponseWriter, r *http.Request) {
+	// Extract request parameters
+	event := route.Param(r.Context(), "event")
+
+	// Upgrade connection to websocket
+	c, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Print("upgrade:", err)
+		return
+	}
+	defer c.Close()
+
+	// Create cellaserv client that connects locally
+	conn := client.NewClient(client.ClientOpts{CellaservAddr: h.options.BrokerAddr})
+	err = conn.Subscribe(event,
+		func(eventName string, eventBytes []byte) {
+			err = c.WriteMessage(websocket.BinaryMessage, eventBytes)
+			if err != nil {
+				h.logger.Error("write:", err)
+				conn.Close()
+			}
+		})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	<-conn.Quit()
 }
 
 func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
@@ -93,6 +174,11 @@ func New(o *Options, logger *logging.Logger, broker *broker.Broker) *Handler {
 	router.Get("/overview", h.overview)
 	router.Get("/static/*filepath", route.FileServe(path.Join(o.AssetsPath, "static")))
 	router.Get("/metrics", promhttp.HandlerFor(prometheus.Gatherers{prometheus.DefaultGatherer, broker.Monitoring.Registry}, promhttp.HandlerOpts{}).ServeHTTP)
+
+	// cellaserv HTTP API
+	router.Post("/api/v1/request/:service/:method", h.request)
+	router.Post("/api/v1/publish/:event", h.publish)
+	router.Get("/api/v1/subscribe/:event", h.subscribe)
 
 	return h
 }

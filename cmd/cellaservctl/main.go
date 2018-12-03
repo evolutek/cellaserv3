@@ -9,6 +9,7 @@ import (
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
 	"github.com/evolutek/cellaserv3/broker"
 	"github.com/evolutek/cellaserv3/client"
+	"github.com/evolutek/cellaserv3/common"
 
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
@@ -33,24 +34,6 @@ var (
 
 	listConnections = kingpin.Command("list-connections", "Lists connections currently established. Alias: lc").Alias("lc")
 )
-
-// Extracts service and identification information from a request path
-// Supported syntaxes: service.method or service/identification.method
-func parseServicePath(path string) (string, string) {
-	pathSlice := strings.Split(path, ".")
-	service := pathSlice[0]
-
-	// Default identification
-	var identification string
-
-	// Extract identification, if present
-	identificationSlice := strings.Split(service, "/")
-	if len(identificationSlice) == 2 {
-		service = identificationSlice[0]
-		identification = identificationSlice[1]
-	}
-	return service, identification
-}
 
 // Returns a string representation of a cellaserv.Request object.
 func requestToString(req *cellaserv.Request) string {
@@ -118,7 +101,7 @@ func main() {
 		<-conn.Quit()
 	case "spy":
 		// Parse args
-		service, identification := parseServicePath(*spyPath)
+		service, identification := common.ParseServicePath(*spyPath)
 		// Setup spy with callback
 		conn.Spy(service, identification,
 			func(req *cellaserv.Request, rep *cellaserv.Reply) {
