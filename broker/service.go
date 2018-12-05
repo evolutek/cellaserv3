@@ -3,7 +3,7 @@ package broker
 import (
 	"net"
 
-	"github.com/evolutek/cellaserv3/common"
+	"bitbucket.org/evolutek/cellaserv3/common"
 )
 
 type service struct {

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/evolutek/cellaserv3/client"
-	"github.com/evolutek/cellaserv3/common"
+	"bitbucket.org/evolutek/cellaserv3/client"
+	"bitbucket.org/evolutek/cellaserv3/common"
 )
 
 var log = common.GetLog()

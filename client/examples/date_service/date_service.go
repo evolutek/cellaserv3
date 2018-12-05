@@ -4,7 +4,7 @@ import (
 	"time"
 
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
-	"github.com/evolutek/cellaserv3/client"
+	"bitbucket.org/evolutek/cellaserv3/client"
 )
 
 func main() {

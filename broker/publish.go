@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"bitbucket.org/evolutek/cellaserv2-protobuf"
-	"github.com/evolutek/cellaserv3/common"
+	"bitbucket.org/evolutek/cellaserv3/common"
 )
 
 func (b *Broker) handlePublish(conn net.Conn, msgBytes []byte, pub *cellaserv.Publish) {

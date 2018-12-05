@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/evolutek/cellaserv3/broker"
-	"github.com/evolutek/cellaserv3/broker/web"
-	"github.com/evolutek/cellaserv3/common"
+	"bitbucket.org/evolutek/cellaserv3/broker"
+	"bitbucket.org/evolutek/cellaserv3/broker/web"
+	"bitbucket.org/evolutek/cellaserv3/common"
 	"github.com/oklog/run"
 	"github.com/prometheus/common/log"
 

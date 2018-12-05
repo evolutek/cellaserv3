@@ -6,7 +6,7 @@ import (
 	"time"
 
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
-	"github.com/evolutek/cellaserv3/broker"
+	"bitbucket.org/evolutek/cellaserv3/broker"
 	logging "gopkg.in/op/go-logging.v1"
 )
 

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
-	"github.com/evolutek/cellaserv3/common"
+	"bitbucket.org/evolutek/cellaserv3/common"
 )
 
 func Dial(t *testing.T) net.Conn {

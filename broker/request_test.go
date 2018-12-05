@@ -6,8 +6,8 @@ import (
 	"time"
 
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
-	"github.com/evolutek/cellaserv3/common"
-	"github.com/evolutek/cellaserv3/testutil"
+	"bitbucket.org/evolutek/cellaserv3/common"
+	"bitbucket.org/evolutek/cellaserv3/testutil"
 	"github.com/golang/protobuf/proto"
 )
 

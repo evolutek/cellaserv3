@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/evolutek/cellaserv3/testutil"
+	"bitbucket.org/evolutek/cellaserv3/testutil"
 )
 
 func TestSubscribe(t *testing.T) {

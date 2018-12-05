@@ -1,8 +1,8 @@
 # cellaserv3
 
 [![Build Status](https://travis-ci.com/evolutek/cellaserv3.svg?branch=master)](https://travis-ci.com/evolutek/cellaserv3)
-[![GoDoc](https://godoc.org/github.com/evolutek/cellaserv3?status.svg)](https://godoc.org/github.com/evolutek/cellaserv3)
-[![Go Report Card](https://goreportcard.com/badge/github.com/evolutek/cellaserv3)](https://goreportcard.com/report/github.com/evolutek/cellaserv3)
+[![GoDoc](https://godoc.org/bitbucket.org/evolutek/cellaserv3?status.svg)](https://godoc.org/bitbucket.org/evolutek/cellaserv3)
+[![Go Report Card](https://goreportcard.com/badge/bitbucket.org/evolutek/cellaserv3)](https://goreportcard.com/report/bitbucket.org/evolutek/cellaserv3)
 
 This repository contains:
 
@@ -14,13 +14,13 @@ This repository contains:
 cellaserv:
 
 ```
-go get github.com/evolutek/cellaserv3/cmd/cellaserv && cellaserv
+go get bitbucket.org/evolutek/cellaserv3/cmd/cellaserv && cellaserv
 ```
 
 cellaservctl:
 
 ```
-go get github.com/evolutek/cellaserv3/cmd/cellaservctl && cellaservctl
+go get bitbucket.org/evolutek/cellaserv3/cmd/cellaservctl && cellaservctl
 ```
 
 ### Configuration

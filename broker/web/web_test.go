@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/evolutek/cellaserv3/broker"
+	"bitbucket.org/evolutek/cellaserv3/broker"
 	"github.com/prometheus/prometheus/util/testutil"
 	logging "gopkg.in/op/go-logging.v1"
 )
