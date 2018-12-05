@@ -25,14 +25,14 @@ func SendRawMessage(conn net.Conn, msg []byte) {
 	var buf bytes.Buffer
 	// Write the size of the message...
 	if err := binary.Write(&buf, binary.BigEndian, uint32(len(msg))); err != nil {
-		log.Error("Could not write message to buffer:", err)
+		log.Errorf("Could not write message to buffer:", err)
 	}
 	// ...concatenate with message content
 	buf.Write(msg)
 	// Send the whole message at once (avoid race condition)
 	// Any IO error will be detected by the main loop trying to read from the conn
 	if _, err := conn.Write(buf.Bytes()); err != nil {
-		log.Error("Could not write message to connection:", err)
+		log.Errorf("Could not write message to connection: %s", err)
 	}
 }
 
