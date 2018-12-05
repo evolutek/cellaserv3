@@ -8,6 +8,7 @@ This repository contains:
 
 - `cellaserv`, the RPC broker
 - `cellaservctl`, the command line tool to for cellaserv
+- `client` the go client library for cellaserv
 
 ## Usage
 
@@ -83,12 +84,13 @@ TODO: document
 
 ## TODO
 
-* prometheus monitoring in client
-* REST API
-* replace golang logging with recent op/go-logging
-* add back `CS_DEBUG`
+* P0 clean the web directory, only keep the REST interface and minimalistic html interface
+* P1 backport service logging from cellaserv2
+* P1 prometheus monitoring in the go client
+* P2 replace golang logging with recent op/go-logging
+* P2 add back `CS_DEBUG`
 
 * client
 
-  * add config variables
-  * add service dependencies
+  * P2 add config variables
+  * P2 add service dependencies
