@@ -327,7 +327,7 @@ func (c *client) Spy(serviceName string, serviceIdentification string, handler s
 
 func newClient(conn net.Conn, name string) *client {
 	c := &client{
-		logger:             logging.MustGetLogger(name),
+		logger:             common.NewLogger(name),
 		conn:               conn,
 		services:           make(map[string]map[string]*service),
 		requestsInFlight:   make(map[uint64]chan *cellaserv.Reply),

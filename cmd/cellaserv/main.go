@@ -13,7 +13,6 @@ import (
 	"bitbucket.org/evolutek/cellaserv3/broker/web"
 	"bitbucket.org/evolutek/cellaserv3/common"
 	"github.com/oklog/run"
-	logging "github.com/op/go-logging"
 )
 
 var (
@@ -56,13 +55,13 @@ func main() {
 		versionAndDie()
 	}
 
-	log := logging.MustGetLogger("cellaserv")
+	log := common.NewLogger("cellaserv")
 
 	// Broker component
 	brokerOptions := &broker.Options{
 		ListenAddress: *addrListenFlag,
 	}
-	broker := broker.New(brokerOptions, logging.MustGetLogger("broker"))
+	broker := broker.New(brokerOptions, common.NewLogger("broker"))
 
 	// Web component
 	webOptions := &web.Options{
@@ -70,7 +69,7 @@ func main() {
 		AssetsPath:      locateHttpAssets(),
 		ExternalURLPath: *httpExternalUrl,
 	}
-	webHander := web.New(webOptions, logging.MustGetLogger("web"), broker)
+	webHander := web.New(webOptions, common.NewLogger("web"), broker)
 
 	// Contexts
 	ctxBroker, cancelBroker := context.WithCancel(context.Background())

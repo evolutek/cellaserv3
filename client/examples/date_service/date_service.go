@@ -7,9 +7,9 @@ import (
 	"bitbucket.org/evolutek/cellaserv3/client"
 )
 
-func main() {
+func runDateService(opts client.ClientOpts) {
 	// Connect to cellaserv
-	conn := client.NewClient(client.ClientOpts{})
+	conn := client.NewClient(opts)
 
 	// Prepare service for registration
 	date := conn.NewService("date", "")
@@ -26,4 +26,8 @@ func main() {
 	conn.RegisterService(date)
 
 	<-conn.Quit()
+}
+
+func main() {
+	runDateService(client.ClientOpts{})
 }

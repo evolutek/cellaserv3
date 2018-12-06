@@ -4,7 +4,7 @@ import (
 	"net"
 	"time"
 
-	"bitbucket.org/evolutek/cellaserv2-protobuf"
+	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
 	"bitbucket.org/evolutek/cellaserv3/common"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -17,7 +17,7 @@ type requestTracking struct {
 }
 
 func (b *Broker) handleRequest(conn net.Conn, msgRaw []byte, req *cellaserv.Request) {
-	b.logger.Info("[Request] Incoming from %s", conn.RemoteAddr())
+	b.logger.Infof("[Request] Incoming from %s", conn.RemoteAddr())
 
 	name := req.GetServiceName()
 	method := req.GetMethod()
@@ -25,9 +25,9 @@ func (b *Broker) handleRequest(conn net.Conn, msgRaw []byte, req *cellaserv.Requ
 	ident := req.GetServiceIdentification()
 
 	if ident != "" {
-		b.logger.Debug("[Request] id:%d %s[%s].%s", id, name, ident, method)
+		b.logger.Debugf("[Request] id:%d %s[%s].%s", id, name, ident, method)
 	} else {
-		b.logger.Debug("[Request] id:%d %s.%s", id, name, method)
+		b.logger.Debugf("[Request] id:%d %s.%s", id, name, method)
 	}
 
 	if name == "cellaserv" {
@@ -37,13 +37,13 @@ func (b *Broker) handleRequest(conn net.Conn, msgRaw []byte, req *cellaserv.Requ
 
 	idents, ok := b.services[name]
 	if !ok || len(idents) == 0 {
-		b.logger.Warning("[Request] id:%d No such service: %s", id, name)
+		b.logger.Warningf("[Request] id:%d No such service: %s", id, name)
 		b.sendReplyError(conn, req, cellaserv.Reply_Error_NoSuchService)
 		return
 	}
 	srvc, ok := idents[ident]
 	if !ok {
-		b.logger.Warning("[Request] id:%d No such identification for service %s: %s",
+		b.logger.Warningf("[Request] id:%d No such identification for service %s: %s",
 			id, name, ident)
 		b.sendReplyError(conn, req, cellaserv.Reply_Error_InvalidIdentification)
 		return
@@ -53,7 +53,7 @@ func (b *Broker) handleRequest(conn net.Conn, msgRaw []byte, req *cellaserv.Requ
 	handleTimeout := func() {
 		_, ok := b.reqIds[id]
 		if ok {
-			b.logger.Error("[Request] id:%d Timeout of %s", id, srvc)
+			b.logger.Errorf("[Request] id:%d Timeout of %s", id, srvc)
 			b.sendReplyError(conn, req, cellaserv.Reply_Error_Timeout)
 		}
 	}

@@ -256,6 +256,7 @@ func (b *Broker) Run(ctx context.Context) error {
 	}
 }
 
+// TODO(halfr): do not use a pointer for options
 func New(options *Options, logger *logging.Logger) *Broker {
 	// Set default options
 	if options.RequestTimeoutSec == 0 {
