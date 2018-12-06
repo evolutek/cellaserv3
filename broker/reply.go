@@ -3,17 +3,16 @@ package broker
 import (
 	"net"
 
-	"bitbucket.org/evolutek/cellaserv2-protobuf"
-	"bitbucket.org/evolutek/cellaserv3/common"
+	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
 )
 
 func (b *Broker) handleReply(conn net.Conn, msgRaw []byte, rep *cellaserv.Reply) {
 	id := rep.Id
-	b.logger.Info("[Reply] id:%d reply from %s", id, conn.RemoteAddr())
+	b.logger.Infof("[Reply] id:%d reply from %s", id, conn.RemoteAddr())
 
 	reqTrack, ok := b.reqIds[id]
 	if !ok {
-		b.logger.Error("[Reply] Unknown ID: %d", id)
+		b.logger.Errorf("[Reply] Unknown ID: %d", id)
 		return
 	}
 	delete(b.reqIds, id)
@@ -23,10 +22,10 @@ func (b *Broker) handleReply(conn net.Conn, msgRaw []byte, rep *cellaserv.Reply)
 
 	// Forward reply to spies
 	for _, spy := range reqTrack.spies {
-		common.SendRawMessage(spy, msgRaw)
+		b.sendRawMessage(spy, msgRaw)
 	}
 
 	reqTrack.timer.Stop()
-	b.logger.Debug("[Reply] Forwarding to %s", reqTrack.sender.RemoteAddr())
-	common.SendRawMessage(reqTrack.sender, msgRaw)
+	b.logger.Debugf("[Reply] Forwarding to %s", reqTrack.sender.RemoteAddr())
+	b.sendRawMessage(reqTrack.sender, msgRaw)
 }

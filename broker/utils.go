@@ -5,7 +5,7 @@ import (
 	"net"
 	"strings"
 
-	"bitbucket.org/evolutek/cellaserv2-protobuf"
+	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
 	"bitbucket.org/evolutek/cellaserv3/common"
 	"github.com/golang/protobuf/proto"
 )
@@ -41,12 +41,18 @@ func (b *Broker) connDescribe(conn net.Conn) string {
 }
 
 // Send utils
+func (b *Broker) sendRawMessage(conn net.Conn, msg []byte) {
+	err := common.SendRawMessage(conn, msg)
+	if err != nil {
+		b.logger.Errorf("[Net] Could not send message %s to %s: %s", msg, conn, err)
+	}
+}
 
 func (b *Broker) sendReply(conn net.Conn, req *cellaserv.Request, data []byte) {
 	rep := &cellaserv.Reply{Id: req.Id, Data: data}
 	repBytes, err := proto.Marshal(rep)
 	if err != nil {
-		b.logger.Error("[Message] Could not marshal outgoing reply")
+		b.logger.Errorf("[Net] Could not marshal outgoing reply: %s", err)
 	}
 
 	msgType := cellaserv.Message_Reply

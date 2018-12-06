@@ -14,10 +14,10 @@ import (
 	"bitbucket.org/evolutek/cellaserv3/common"
 
 	"github.com/gorilla/websocket"
+	logging "github.com/op/go-logging"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/route"
-	logging "github.com/op/go-logging"
 )
 
 type Options struct {
@@ -61,7 +61,7 @@ func (h *Handler) request(w http.ResponseWriter, r *http.Request) {
 	// Write request
 	_, err = w.Write(resp)
 	if err != nil {
-		h.logger.Error("Could not write response: %s", err)
+		h.logger.Errorf("Could not write response: %s", err)
 	}
 }
 
@@ -112,6 +112,8 @@ func (h *Handler) subscribe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
+	h.logger.Debug("[Web] Serving overview")
+
 	overview := struct {
 		Connections []broker.ConnectionJSON
 		Services    []broker.ServiceJSON
@@ -147,7 +149,7 @@ func (h *Handler) executeTemplate(w http.ResponseWriter, name string, data inter
 
 // Starts the web component
 func (h *Handler) Run(ctx context.Context) error {
-	h.logger.Info("[Web] Listening on %s", h.options.ListenAddr)
+	h.logger.Infof("[Web] Listening on %s", h.options.ListenAddr)
 
 	httpSrv := &http.Server{
 		Addr:    h.options.ListenAddr,

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net"
 
-	"bitbucket.org/evolutek/cellaserv2-protobuf"
+	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
 	"bitbucket.org/evolutek/cellaserv3/common"
 	"github.com/golang/protobuf/proto"
 )
@@ -43,7 +43,7 @@ func (b *Broker) handleDescribeConn(conn net.Conn, req *cellaserv.Request) {
 	}
 
 	if err := json.Unmarshal(req.Data, &data); err != nil {
-		b.logger.Warning("[Cellaserv] Could not unmarshal describe-conn: %s, %s", req.Data, err)
+		b.logger.Warningf("[Cellaserv] Could not unmarshal describe-conn: %s, %s", req.Data, err)
 		b.sendReplyError(conn, req, cellaserv.Reply_Error_BadArguments)
 		return
 	}
@@ -54,7 +54,7 @@ func (b *Broker) handleDescribeConn(conn net.Conn, req *cellaserv.Request) {
 	pubJSON, _ := json.Marshal(ConnectionJSON{conn.RemoteAddr().String(), newName})
 	b.cellaservPublish(logConnRename, pubJSON)
 
-	b.logger.Debug("[Cellaserv] Describe %s as %s", conn.RemoteAddr(), data.Name)
+	b.logger.Debugf("[Cellaserv] Describe %s as %s", conn.RemoteAddr(), data.Name)
 
 	b.sendReply(conn, req, nil) // Empty reply
 }
@@ -75,7 +75,7 @@ func (b *Broker) handleListServices(conn net.Conn, req *cellaserv.Request) {
 	servicesList := b.GetServicesJSON()
 	data, err := json.Marshal(servicesList)
 	if err != nil {
-		b.logger.Error("[Cellaserv] Could not marshal the services")
+		b.logger.Errorf("[Cellaserv] Could not marshal the services: %s", err)
 	}
 	b.sendReply(conn, req, data)
 }
@@ -95,7 +95,7 @@ func (b *Broker) handleListConnections(conn net.Conn, req *cellaserv.Request) {
 	conns := b.GetConnectionsJSON()
 	data, err := json.Marshal(conns)
 	if err != nil {
-		b.logger.Error("[Cellaserv] Could not marshal the connections list")
+		b.logger.Errorf("[Cellaserv] Could not marshal the connections list: %s", err)
 	}
 	b.sendReply(conn, req, data)
 }
@@ -125,7 +125,7 @@ func (b *Broker) handleListEvents(conn net.Conn, req *cellaserv.Request) {
 	events := b.GetEventsJSON()
 	data, err := json.Marshal(events)
 	if err != nil {
-		b.logger.Error("[Cellaserv] Could not marshal the event list")
+		b.logger.Errorf("[Cellaserv] Could not marshal the event list: %s", err)
 	}
 	b.sendReply(conn, req, data)
 }
@@ -141,20 +141,20 @@ func (b *Broker) handleSpy(conn net.Conn, req *cellaserv.Request) {
 	var data SpyRequest
 	err := json.Unmarshal(req.Data, &data)
 	if err != nil {
-		b.logger.Warning("[Cellaserv] Could not spy, json error: %s", err)
+		b.logger.Warningf("[Cellaserv] Could not spy: %s", err)
 		b.sendReplyError(conn, req, cellaserv.Reply_Error_BadArguments)
 		return
 	}
 
 	srvc, ok := b.services[data.Service][data.Identification]
 	if !ok {
-		b.logger.Warning("[Cellaserv] Could not spy, no such service: %s %s", data.Service,
+		b.logger.Warningf("[Cellaserv] Could not spy, no such service: %s %s", data.Service,
 			data.Identification)
 		b.sendReplyError(conn, req, cellaserv.Reply_Error_BadArguments)
 		return
 	}
 
-	b.logger.Debug("[Cellaserv] %s spies on %s/%s", b.connDescribe(conn), data.Service,
+	b.logger.Debugf("[Cellaserv] %s spies on %s/%s", b.connDescribe(conn), data.Service,
 		data.Identification)
 
 	srvc.Spies = append(srvc.Spies, conn)
@@ -167,7 +167,7 @@ func (b *Broker) handleSpy(conn net.Conn, req *cellaserv.Request) {
 func (b *Broker) handleVersion(conn net.Conn, req *cellaserv.Request) {
 	data, err := json.Marshal(common.Version)
 	if err != nil {
-		b.logger.Warning("[Cellaserv] Could not marshall version, json error: %s", err)
+		b.logger.Warningf("[Cellaserv] Could not marshall version: %s", err)
 		b.sendReplyError(conn, req, cellaserv.Reply_Error_BadArguments)
 		return
 	}
@@ -204,14 +204,14 @@ func (b *Broker) cellaservPublish(event string, data []byte) {
 	}
 	pubBytes, err := proto.Marshal(pub)
 	if err != nil {
-		b.logger.Error("[Cellaserv] Could not marshal event")
+		b.logger.Errorf("[Cellaserv] Could not marshal event: %s", err)
 		return
 	}
 	msgType := cellaserv.Message_Publish
 	msg := &cellaserv.Message{Type: msgType, Content: pubBytes}
 	msgBytes, err := proto.Marshal(msg)
 	if err != nil {
-		b.logger.Error("[Cellaserv] Could not marshal event")
+		b.logger.Errorf("[Cellaserv] Could not marshal event: %s", err)
 		return
 	}
 

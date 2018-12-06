@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"os"
 	"time"
 
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
@@ -16,8 +17,10 @@ import (
 )
 
 type Options struct {
-	ListenAddress     string
-	RequestTimeoutSec time.Duration
+	ListenAddress         string
+	RequestTimeoutSec     time.Duration
+	VarRoot               string
+	ServiceLoggingEnabled bool
 }
 
 type Monitoring struct {
@@ -52,13 +55,18 @@ type Broker struct {
 	subscriberMap      map[string][]net.Conn
 	subscriberMatchMap map[string][]net.Conn
 
+	// Service logging
+	serviceLoggingSession string
+	serviceLoggingRoot    string
+	serviceLoggingLoggers map[string]*os.File
+
 	// The broker must quit
 	quitCh chan struct{}
 }
 
 // Manage incoming connexions
 func (b *Broker) handle(conn net.Conn) {
-	b.logger.Info("[Broker] Connection opened: %s", b.connDescribe(conn))
+	b.logger.Infof("[Broker] Connection opened: %s", b.connDescribe(conn))
 
 	connJSON := connToJSON(conn)
 	b.cellaservPublish(logNewConnection, connJSON)
@@ -70,15 +78,15 @@ func (b *Broker) handle(conn net.Conn) {
 	for {
 		closed, msgBytes, msg, err := common.RecvMessage(conn)
 		if err != nil {
-			b.logger.Error("[Message] Receive: %s", err)
+			b.logger.Errorf("[Message] Receive: %s", err)
 		}
 		if closed {
-			b.logger.Info("[Broker] Connection closed: %s", b.connDescribe(conn))
+			b.logger.Infof("[Broker] Connection closed: %s", b.connDescribe(conn))
 			break
 		}
 		err = b.handleMessage(conn, msgBytes, msg)
 		if err != nil {
-			b.logger.Error("[Message] Handle: %s", err)
+			b.logger.Errorf("[Message] Handle: %s", err)
 		}
 	}
 
@@ -91,16 +99,16 @@ func (b *Broker) handle(conn net.Conn) {
 	// Remove services registered by this connection
 	// TODO: notify goroutines waiting for acks for this service
 	for _, s := range b.servicesConn[conn] {
-		b.logger.Info("[Services] Remove %s", s)
+		b.logger.Infof("[Service] Remove %s", s)
 		pubJSON, _ := json.Marshal(s.JSONStruct())
 		b.cellaservPublish(logLostService, pubJSON)
 		delete(b.services[s.Name], s.Identification)
 
 		// Close connections that spied this service
 		for _, c := range s.Spies {
-			b.logger.Debug("[Service] Close spy conn: %s", b.connDescribe(c))
+			b.logger.Debugf("[Service] Close spy conn: %s", b.connDescribe(c))
 			if err := c.Close(); err != nil {
-				b.logger.Error("Could not close connection:", err)
+				b.logger.Errorf("Could not close connection: %s", err)
 			}
 		}
 	}
@@ -151,7 +159,7 @@ func (b *Broker) logUnmarshalError(msg []byte) {
 	for _, b := range msg {
 		dbg = dbg + fmt.Sprintf("0x%02X ", b)
 	}
-	b.logger.Error("[Broker] Bad message (%d bytes): %s", len(msg), dbg)
+	b.logger.Errorf("[Broker] Bad message (%d bytes): %s", len(msg), dbg)
 }
 
 func (b *Broker) handleMessage(conn net.Conn, msgBytes []byte, msg *cellaserv.Message) error {
@@ -218,7 +226,7 @@ func (b *Broker) serve(l net.Listener) error {
 		nerr, ok := err.(net.Error)
 		if ok {
 			if nerr.Temporary() {
-				b.logger.Warning("[Broker] Could not accept: %s", err)
+				b.logger.Warningf("[Broker] Could not accept: %s", err)
 				time.Sleep(10 * time.Millisecond)
 				continue
 			} else {
@@ -231,15 +239,22 @@ func (b *Broker) serve(l net.Listener) error {
 }
 
 func (b *Broker) Run(ctx context.Context) error {
+	if b.Options.ServiceLoggingEnabled {
+		err := b.rotateServiceLogs()
+		if err != nil {
+			return err
+		}
+	}
+
 	// Create TCP listenener for incoming connections
 	l, err := net.Listen("tcp", b.Options.ListenAddress)
 	if err != nil {
-		b.logger.Error("[Broker] Could not listen: %s", err)
+		b.logger.Errorf("[Broker] Could not listen: %s", err)
 		return err
 	}
 	defer l.Close()
 
-	b.logger.Info("[Broker] Listening on %s", b.Options.ListenAddress)
+	b.logger.Infof("[Broker] Listening on %s", b.Options.ListenAddress)
 
 	errCh := make(chan error)
 	go func() {
@@ -286,7 +301,8 @@ func New(options *Options, logger *logging.Logger) *Broker {
 		subscriberMap:      make(map[string][]net.Conn),
 		subscriberMatchMap: make(map[string][]net.Conn),
 		connList:           list.New(),
-		quitCh:             make(chan struct{}),
+
+		quitCh: make(chan struct{}),
 	}
 
 	// Setup monitoring

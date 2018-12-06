@@ -5,7 +5,7 @@ import (
 	"net"
 	"strings"
 
-	"bitbucket.org/evolutek/cellaserv2-protobuf"
+	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
 )
 
 type logSubscriberJSON struct {
@@ -14,7 +14,7 @@ type logSubscriberJSON struct {
 }
 
 func (b *Broker) handleSubscribe(conn net.Conn, sub *cellaserv.Subscribe) {
-	b.logger.Info("[Subscribe] %s subscribes to %s", conn.RemoteAddr(), sub.Event)
+	b.logger.Infof("[Subscribe] %s subscribes to %s", conn.RemoteAddr(), sub.Event)
 	if strings.Contains(sub.Event, "*") {
 		b.subscriberMatchMap[sub.Event] = append(b.subscriberMatchMap[sub.Event], conn)
 	} else {
