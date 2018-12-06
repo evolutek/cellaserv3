@@ -22,6 +22,8 @@ var (
 	httpAddrListenFlag = flag.String("http-listen-addr", ":4280", "listening address of the internal HTTP server")
 	httpAssetsRootFlag = flag.String("http-assets-root", "/usr/share/cellaserv/http", "location of the http assets")
 	httpExternalUrl    = flag.String("http-external-url", "", "prefix of the web component URLs")
+	storageRoot        = flag.String("storage-root", "/var/cellaserv", "base path for persistent storage")
+	storeLogs          = flag.Bool("store-logs", true, "whether to store logs, enables using cellaserv.get_logs()")
 )
 
 func versionAndDie() {
@@ -59,7 +61,9 @@ func main() {
 
 	// Broker component
 	brokerOptions := &broker.Options{
-		ListenAddress: *addrListenFlag,
+		ListenAddress:         *addrListenFlag,
+		VarRoot:               *storageRoot,
+		ServiceLoggingEnabled: *storeLogs,
 	}
 	broker := broker.New(brokerOptions, common.NewLogger("broker"))
 
