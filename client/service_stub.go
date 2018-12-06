@@ -22,7 +22,7 @@ func (s *serviceStub) String() string {
 }
 
 func (s *serviceStub) Request(method string, data interface{}) ([]byte, error) {
-	log.Debug("[Request] %s.%s(%#v)", s, method, data)
+	s.client.logger.Debug("[Request] %s.%s(%#v)", s, method, data)
 
 	// Serialize request payload
 	dataBytes, err := json.Marshal(data)
@@ -44,7 +44,7 @@ func (s *serviceStub) Request(method string, data interface{}) ([]byte, error) {
 	// Check for errors
 	replyError := reply.GetError()
 	if replyError != nil {
-		log.Error("[Reply] Error: %s", replyError.String())
+		s.client.logger.Errorf("[Reply] Error: %s", replyError.String())
 		return nil, fmt.Errorf(replyError.String())
 	}
 

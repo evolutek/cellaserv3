@@ -17,7 +17,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/route"
-	logging "gopkg.in/op/go-logging.v1"
+	logging "github.com/op/go-logging"
 )
 
 type Options struct {

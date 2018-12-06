@@ -4,10 +4,7 @@ import (
 	"time"
 
 	"bitbucket.org/evolutek/cellaserv3/client"
-	"bitbucket.org/evolutek/cellaserv3/common"
 )
-
-var log = common.GetLog()
 
 func main() {
 	// Connect to cellaserv

@@ -14,14 +14,13 @@ import (
 	"bitbucket.org/evolutek/cellaserv3/broker"
 	"bitbucket.org/evolutek/cellaserv3/common"
 	"github.com/golang/protobuf/proto"
+	logging "github.com/op/go-logging"
 )
 
 const (
 	defaultCellaservPort = "4200"
 	defaultCellaservHost = "localhost"
 )
-
-var log = common.GetLog()
 
 type subscriberHandler func(eventName string, eventData []byte)
 
@@ -38,13 +37,21 @@ type spyPendingRequest struct {
 }
 
 type client struct {
-	conn               net.Conn
-	services           map[string]map[string]*service
-	subscribers        []*subscriber
-	spies              map[string]map[string][]spyHandler
-	spyRequestsPending map[uint64]*spyPendingRequest
+	logger *logging.Logger
 
+	// Connection to cellaserv
+	conn net.Conn
+	// Services registered on this client
+	services map[string]map[string]*service
+	// Subscribers on this client
+	subscribers []*subscriber
+	// Spies on this client
+	spies map[string]map[string][]spyHandler
+	// Spy requests missing their associated replies
+	spyRequestsPending map[uint64]*spyPendingRequest
+	// Nonce used to compute request ids
 	currentRequestId uint64
+	// Map of request ids to their replies
 	requestsInFlight map[uint64]chan *cellaserv.Reply
 
 	msgCh   chan *cellaserv.Message
@@ -53,7 +60,7 @@ type client struct {
 }
 
 func (c *client) sendRequestWaitForReply(req *cellaserv.Request) *cellaserv.Reply {
-	// Add message Id
+	// Add message Id and increment nonce
 	req.Id = atomic.AddUint64(&c.currentRequestId, 1)
 	reqBytes, err := proto.Marshal(req)
 	if err != nil {
@@ -80,7 +87,7 @@ func (c *client) handleRequest(req *cellaserv.Request) error {
 	name := req.GetServiceName()
 	ident := req.GetServiceIdentification()
 	method := req.GetMethod()
-	log.Debug("[Request] %s/%s.%s", name, ident, method)
+	c.logger.Debug("[Request] %s/%s.%s", name, ident, method)
 
 	// Dispatch request to spies
 	hasSpied := false
@@ -88,7 +95,7 @@ func (c *client) handleRequest(req *cellaserv.Request) error {
 	if ok {
 		spies, ok := identsSpied[ident]
 		if ok {
-			log.Infof("[Spy] Received spied request: %s/%s.%s", name, ident, method)
+			c.logger.Infof("[Spy] Received spied request: %s/%s.%s", name, ident, method)
 			hasSpied = true
 			// Spy handler is called when the reply to this request is received
 			c.spyRequestsPending[req.GetId()] = &spyPendingRequest{
@@ -127,7 +134,7 @@ func (c *client) sendRequestReply(req *cellaserv.Request, replyData []byte, repl
 
 	if replyErr != nil {
 		// Log error
-		log.Warningf("[Request] Reply error: %s", replyErr)
+		c.logger.Warningf("[Request] Reply error: %s", replyErr)
 
 		// Add error info to reply
 		errString := replyErr.Error()
@@ -148,7 +155,7 @@ func (c *client) handleReply(rep *cellaserv.Reply) error {
 	hasSpied := false
 	spyPending, ok := c.spyRequestsPending[rep.GetId()]
 	if ok {
-		log.Infof("[Spy] Dispatching request and reply %d", rep.GetId())
+		c.logger.Infof("[Spy] Dispatching request and reply %d", rep.GetId())
 		hasSpied = true
 		for _, spy := range spyPending.spies {
 			spy(spyPending.req, rep)
@@ -171,10 +178,10 @@ func (c *client) handleReply(rep *cellaserv.Reply) error {
 
 func (c *client) handlePublish(pub *cellaserv.Publish) {
 	eventName := pub.GetEvent()
-	log.Info("[Publish] Received: %s", eventName)
+	c.logger.Infof("[Publish] Received: %s", eventName)
 	for _, h := range c.subscribers {
 		if matched, _ := filepath.Match(h.eventPattern, eventName); matched {
-			log.Debug("[Publish] Handling %s", eventName)
+			c.logger.Debugf("[Publish] Handling %s", eventName)
 			h.handle(eventName, pub.GetData())
 		}
 	}
@@ -244,11 +251,11 @@ func (c *client) RegisterService(s *service) {
 	msg := &cellaserv.Message{Type: msgType, Content: msgContentBytes}
 	common.SendMessage(c.conn, msg)
 
-	log.Info("Service %s registered", s)
+	c.logger.Infof("Service %s registered", s)
 }
 
 func (c *client) Publish(event string, data interface{}) {
-	log.Debug("[Publish] Sending: %s(%v)", event, data)
+	c.logger.Debugf("[Publish] Sending: %s(%v)", event, data)
 
 	// Serialize request payload
 	dataBytes, err := json.Marshal(data)
@@ -278,7 +285,7 @@ func (c *client) Subscribe(eventPattern string, handler subscriberHandler) error
 		eventPattern: eventPattern,
 		handle:       handler,
 	}
-	log.Info("[Subscribe] Subscribing to event pattern: %s", eventPattern)
+	c.logger.Infof("[Subscribe] Subscribing to event pattern: %s", eventPattern)
 	c.subscribers = append(c.subscribers, s)
 
 	// Prepare subscribe message
@@ -318,8 +325,9 @@ func (c *client) Spy(serviceName string, serviceIdentification string, handler s
 	return nil
 }
 
-func newClient(conn net.Conn) *client {
+func newClient(conn net.Conn, name string) *client {
 	c := &client{
+		logger:             logging.MustGetLogger(name),
 		conn:               conn,
 		services:           make(map[string]map[string]*service),
 		requestsInFlight:   make(map[uint64]chan *cellaserv.Reply),
@@ -340,7 +348,7 @@ func newClient(conn net.Conn) *client {
 				break
 			}
 			if err != nil {
-				log.Errorf("Could not receive message: %s", err)
+				c.logger.Errorf("Could not receive message: %s", err)
 				continue
 			}
 			c.msgCh <- msg
@@ -355,7 +363,7 @@ func newClient(conn net.Conn) *client {
 			case msg := <-c.msgCh:
 				err := c.handleMessage(msg)
 				if err != nil {
-					log.Error("[Message] Handle: %s", err)
+					c.logger.Errorf("[Message] Handle: %s", err)
 				}
 			case <-c.closeCh:
 				break Loop
@@ -397,7 +405,12 @@ func NewClient(opts ClientOpts) *client {
 		panic(fmt.Errorf("Could not connect to cellaserv: %s", err))
 	}
 
-	return newClient(conn)
+	name := opts.ClientName
+	if name == "" {
+		name = "client"
+	}
+
+	return newClient(conn, name)
 }
 
 func init() {

@@ -14,7 +14,7 @@ import (
 
 func TestNewClient(t *testing.T) {
 	_, client := net.Pipe()
-	c := newClient(client)
+	c := newClient(client, "test")
 	c.Close()
 }
 
@@ -32,7 +32,7 @@ func TestRegisterService(t *testing.T) {
 	}()
 
 	// Connect to cellaserv
-	conn := newClient(client)
+	conn := newClient(client, "test")
 
 	// Prepare service for registration
 	date := conn.NewService("date", "")
@@ -89,7 +89,7 @@ func TestServiceStubRequest(t *testing.T) {
 		common.SendMessage(server, replyMsg)
 	}()
 
-	c := newClient(client)
+	c := newClient(client, "test")
 	// Create date service stub
 	date := NewServiceStub(c, "date", "")
 	// Request date.time()
@@ -146,7 +146,7 @@ func TestPublish(t *testing.T) {
 		}
 	}()
 
-	c := newClient(client)
+	c := newClient(client, "test")
 	c.Publish(publishEvent, publishData)
 	<-done
 }

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"bitbucket.org/evolutek/cellaserv2-protobuf"
+	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
 	"bitbucket.org/evolutek/cellaserv3/common"
 )
 
@@ -22,12 +22,9 @@ func (b *Broker) doPublish(msgBytes []byte, pub *cellaserv.Publish) {
 
 	// Handle log publishes
 	if strings.HasPrefix(event, "log.") {
-		var data string
-		if pub.Data != nil {
-			data = string(pub.Data)
-		}
-		event := pub.Event[4:] // Strip 'log.' prefix
-		common.LogEvent(event, data)
+		event := pub.Event[len("log."):]
+		data := string(pub.Data)
+		b.handleLoggingPublish(event, data)
 	}
 
 	// Holds subscribers for this publish
@@ -48,4 +45,8 @@ func (b *Broker) doPublish(msgBytes []byte, pub *cellaserv.Publish) {
 		b.logger.Debug("[Publish] Forwarding %s to %s", pub.GetEvent(), b.connDescribe(connSub))
 		common.SendRawMessage(connSub, msgBytes)
 	}
+}
+
+func (b *Broker) handleLoggingPublish(event string, data string) {
+	// TODO(halfr): cellaserv logging revamp
 }

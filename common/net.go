@@ -11,29 +11,30 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-func SendMessage(conn net.Conn, msg *cellaserv.Message) {
+func SendMessage(conn net.Conn, msg *cellaserv.Message) error {
 	msgBytes, err := proto.Marshal(msg)
 	if err != nil {
-		log.Error("[Message] Could not marshal outgoing message")
+		return fmt.Errorf("Could not marshal outgoing message: %s", err)
 	}
 
-	SendRawMessage(conn, msgBytes)
+	return SendRawMessage(conn, msgBytes)
 }
 
-func SendRawMessage(conn net.Conn, msg []byte) {
+func SendRawMessage(conn net.Conn, msg []byte) error {
 	// Create temporary buffer
 	var buf bytes.Buffer
 	// Write the size of the message...
 	if err := binary.Write(&buf, binary.BigEndian, uint32(len(msg))); err != nil {
-		log.Errorf("Could not write message to buffer:", err)
+		return fmt.Errorf("Could not write message to buffer: %s", err)
 	}
 	// ...concatenate with message content
 	buf.Write(msg)
 	// Send the whole message at once (avoid race condition)
 	// Any IO error will be detected by the main loop trying to read from the conn
 	if _, err := conn.Write(buf.Bytes()); err != nil {
-		log.Errorf("Could not write message to connection: %s", err)
+		return fmt.Errorf("Could not write message to connection: %s", err)
 	}
+	return nil
 }
 
 // RecvMessage reads and return a cellaserv message from an open connection.

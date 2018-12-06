@@ -11,8 +11,8 @@ import (
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
 	"bitbucket.org/evolutek/cellaserv3/common"
 	"github.com/golang/protobuf/proto"
+	logging "github.com/op/go-logging"
 	"github.com/prometheus/client_golang/prometheus"
-	logging "gopkg.in/op/go-logging.v1"
 )
 
 type Options struct {

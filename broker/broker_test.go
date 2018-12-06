@@ -2,12 +2,10 @@ package broker
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
-	"bitbucket.org/evolutek/cellaserv3/common"
-	logging "gopkg.in/op/go-logging.v1"
+	logging "github.com/op/go-logging"
 )
 
 // brokerTest is a test harness for testing the broker. It takes care of
@@ -34,13 +32,4 @@ func brokerTest(t *testing.T, testFn func(b *Broker)) {
 	// Teardown broker
 	cancelBroker()
 	time.Sleep(50 * time.Millisecond)
-}
-
-// TestMain is called at the begining of the test suite.
-func TestMain(m *testing.M) {
-	// Make sure the tests have logging setup
-	common.LogSetup()
-
-	// Start the tests
-	os.Exit(m.Run())
 }

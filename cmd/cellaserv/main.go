@@ -13,9 +13,7 @@ import (
 	"bitbucket.org/evolutek/cellaserv3/broker/web"
 	"bitbucket.org/evolutek/cellaserv3/common"
 	"github.com/oklog/run"
-	"github.com/prometheus/common/log"
-
-	logging "gopkg.in/op/go-logging.v1"
+	logging "github.com/op/go-logging"
 )
 
 var (
@@ -58,7 +56,7 @@ func main() {
 		versionAndDie()
 	}
 
-	common.LogSetup()
+	log := logging.MustGetLogger("cellaserv")
 
 	// Broker component
 	brokerOptions := &broker.Options{

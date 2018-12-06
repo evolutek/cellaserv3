@@ -2,12 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 
 	"bitbucket.org/evolutek/cellaserv3/client"
-	"bitbucket.org/evolutek/cellaserv3/common"
 )
-
-var log = common.GetLog()
 
 func main() {
 	// Connect to cellaserv
@@ -17,12 +15,12 @@ func main() {
 		var eventData string
 		err := json.Unmarshal(eventBytes, &eventData)
 		if err != nil {
-			log.Error("Could not unmarshal: ", err)
+			log.Printf("Could not unmarshal: %s", err)
 		}
-		log.Info(eventData)
+		log.Print(eventData)
 	})
 	if err != nil {
-		log.Error("Could not subscribe", err)
+		log.Printf("Could not subscribe: %s", err)
 		return
 	}
 	<-conn.Quit()

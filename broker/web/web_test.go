@@ -9,7 +9,7 @@ import (
 
 	"bitbucket.org/evolutek/cellaserv3/broker"
 	"github.com/prometheus/prometheus/util/testutil"
-	logging "gopkg.in/op/go-logging.v1"
+	logging "github.com/op/go-logging"
 )
 
 func TestWeb(t *testing.T) {

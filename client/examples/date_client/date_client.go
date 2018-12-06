@@ -3,13 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	"bitbucket.org/evolutek/cellaserv3/client"
-	"bitbucket.org/evolutek/cellaserv3/common"
 )
-
-var log = common.GetLog()
 
 func main() {
 	// Connect to cellaserv
@@ -19,11 +17,15 @@ func main() {
 	// Request date.time()
 	respBytes, err := date.Request("time", nil)
 	if err != nil {
-		log.Error("date.time() query failed: %s", err)
+		log.Printf("date.time() query failed: %s", err)
 		return
 	}
 	var resp time.Time
 	// Process response
-	json.Unmarshal(respBytes, &resp)
+	err = json.Unmarshal(respBytes, &resp)
+	if err != nil {
+		log.Printf("Could not unmarshal response: %s", err)
+		return
+	}
 	fmt.Println(resp)
 }
