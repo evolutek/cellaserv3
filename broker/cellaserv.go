@@ -2,7 +2,11 @@ package broker
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"net"
+	"path"
+	"path/filepath"
+	"strings"
 
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
 	"bitbucket.org/evolutek/cellaserv3/common"
@@ -174,17 +178,72 @@ func (b *Broker) handleVersion(conn net.Conn, req *cellaserv.Request) {
 	b.sendReply(conn, req, data)
 }
 
+func (b *Broker) handleGetLogs(conn net.Conn, req *cellaserv.Request) {
+	if req.Data == nil {
+		b.logger.Warning("[Cellaserv] Log request does not specify event")
+		b.sendReplyError(conn, req, cellaserv.Reply_Error_BadArguments)
+		return
+	}
+
+	event := string(req.Data)
+	pattern := path.Join(b.serviceLoggingRoot, event)
+
+	if !strings.HasPrefix(pattern, path.Join(b.Options.VarRoot, "logs")) {
+		b.logger.Warningf("[Cellaserv] Don't try to do directory traversal: %s", event)
+		b.sendReplyError(conn, req, cellaserv.Reply_Error_BadArguments)
+		return
+	}
+
+	// Globbing is allowed
+	filenames, err := filepath.Glob(pattern)
+
+	if err != nil {
+		b.logger.Warningf("[Cellaserv] Invalid log globbing : %s, %s", event, err)
+		b.sendReplyError(conn, req, cellaserv.Reply_Error_BadArguments)
+		return
+	}
+
+	if len(filenames) == 0 {
+		b.logger.Warningf("[Cellaserv] No such logs: %s", event)
+		b.sendReplyError(conn, req, cellaserv.Reply_Error_BadArguments)
+		return
+	}
+
+	logs := make(map[string]string)
+
+	for _, filename := range filenames {
+		data, err := ioutil.ReadFile(filename)
+		if err != nil {
+			b.logger.Warningf("[Cellaserv] Could not open log: %s: %s", filename, err)
+			b.sendReplyError(conn, req, cellaserv.Reply_Error_BadArguments)
+			return
+		}
+		logs[path.Base(filename)] = string(data)
+	}
+
+	logs_json, err := json.Marshal(logs)
+	if err != nil {
+		b.logger.Warningf("[Cellaserv] Could not serialise log: %s", err)
+		b.sendReplyError(conn, req, cellaserv.Reply_Error_BadArguments)
+		return
+	}
+	b.sendReply(conn, req, logs_json)
+}
+
 // cellaservRequest dispatches requests for cellaserv.
 func (b *Broker) cellaservRequest(conn net.Conn, req *cellaserv.Request) {
-	switch req.Method {
-	case "describe-conn", "describe_conn":
+	method := strings.Replace(req.Method, "-", "_", -1)
+	switch method {
+	case "describe_conn":
 		b.handleDescribeConn(conn, req)
-	case "list-connections", "list_connections":
+	case "list_connections":
 		b.handleListConnections(conn, req)
-	case "list-events", "list_events":
+	case "list_events":
 		b.handleListEvents(conn, req)
-	case "list-services", "list_services":
+	case "list_services":
 		b.handleListServices(conn, req)
+	case "get_logs":
+		b.handleGetLogs(conn, req)
 	case "shutdown":
 		b.handleShutdown()
 	case "spy":

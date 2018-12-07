@@ -6,6 +6,7 @@ import (
 
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
 	"bitbucket.org/evolutek/cellaserv3/common"
+	"github.com/golang/protobuf/proto"
 )
 
 func Dial(t *testing.T) net.Conn {
@@ -23,4 +24,14 @@ func RecvMessage(t *testing.T, conn net.Conn) *cellaserv.Message {
 		return nil
 	}
 	return msg
+}
+
+func RecvReply(t *testing.T, conn net.Conn) []byte {
+	msg := RecvMessage(t, conn)
+	MsgTypeIs(t, msg, cellaserv.Message_Reply)
+	repData := msg.Content
+	var rep cellaserv.Reply
+	err := proto.Unmarshal(repData, &rep)
+	Ok(t, err)
+	return rep.Data
 }

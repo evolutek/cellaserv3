@@ -17,9 +17,10 @@ import (
 )
 
 type Options struct {
-	ListenAddress         string
-	RequestTimeoutSec     time.Duration
-	VarRoot               string
+	ListenAddress     string
+	RequestTimeoutSec time.Duration
+	VarRoot           string
+	// Rename to PublishLoggingEnabled
 	ServiceLoggingEnabled bool
 }
 
