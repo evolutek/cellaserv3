@@ -85,13 +85,14 @@ func main() {
 		//  Broker
 		g.Add(func() error {
 			if err := broker.Run(ctxBroker); err != nil {
-				return fmt.Errorf("error starting the broker: %s", err)
+				return fmt.Errorf("[Broker:] Could not start: %s", err)
 			}
 			return nil
 		}, func(error) {
 			cancelBroker()
 		})
-
+	}
+	{
 		// Web handler
 		g.Add(func() error {
 			if err := webHander.Run(ctxWeb); err != nil {

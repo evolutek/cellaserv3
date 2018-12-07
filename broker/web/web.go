@@ -155,7 +155,18 @@ func (h *Handler) Run(ctx context.Context) error {
 		Addr:    h.options.ListenAddr,
 		Handler: h.router,
 	}
-	return httpSrv.ListenAndServe()
+
+	errChan := make(chan error)
+	go func() {
+		errChan <- httpSrv.ListenAndServe()
+	}()
+
+	select {
+	case err := <-errChan:
+		return err
+	case <-ctx.Done():
+		return httpSrv.Close()
+	}
 }
 
 // Returns a new web endpoint Handler
