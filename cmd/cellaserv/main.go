@@ -60,10 +60,10 @@ func main() {
 	log := common.NewLogger("cellaserv")
 
 	// Broker component
-	brokerOptions := &broker.Options{
+	brokerOptions := broker.Options{
 		ListenAddress:         *addrListenFlag,
 		VarRoot:               *storageRoot,
-		ServiceLoggingEnabled: *storeLogs,
+		PublishLoggingEnabled: *storeLogs,
 	}
 	broker := broker.New(brokerOptions, common.NewLogger("broker"))
 

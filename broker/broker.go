@@ -17,11 +17,10 @@ import (
 )
 
 type Options struct {
-	ListenAddress     string
-	RequestTimeoutSec time.Duration
-	VarRoot           string
-	// Rename to PublishLoggingEnabled
-	ServiceLoggingEnabled bool
+	ListenAddress         string
+	RequestTimeoutSec     time.Duration
+	VarRoot               string
+	PublishLoggingEnabled bool
 }
 
 type Monitoring struct {
@@ -240,7 +239,7 @@ func (b *Broker) serve(l net.Listener) error {
 }
 
 func (b *Broker) Run(ctx context.Context) error {
-	if b.Options.ServiceLoggingEnabled {
+	if b.Options.PublishLoggingEnabled {
 		err := b.rotateServiceLogs()
 		if err != nil {
 			return err
@@ -262,18 +261,19 @@ func (b *Broker) Run(ctx context.Context) error {
 		errCh <- b.serve(l)
 	}()
 
+	close(b.started)
+
 	select {
 	case e := <-errCh:
 		return e
-	case <-b.quitCh:
+	case <-b.quit:
 		return nil
 	case <-ctx.Done():
 		return nil
 	}
 }
 
-// TODO(halfr): do not use a pointer for options
-func New(options *Options, logger *logging.Logger) *Broker {
+func New(options Options, logger *logging.Logger) *Broker {
 	// Set default options
 	if options.RequestTimeoutSec == 0 {
 		options.RequestTimeoutSec = 5
@@ -289,7 +289,7 @@ func New(options *Options, logger *logging.Logger) *Broker {
 	}
 
 	broker := &Broker{
-		Options: options,
+		Options: &options,
 		logger:  logger,
 
 		Monitoring: m,

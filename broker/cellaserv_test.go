@@ -19,7 +19,7 @@ func TestPublishLog(t *testing.T) {
 
 	brokerTestWithOptions(t, Options{
 		VarRoot:               tmpDir,
-		ServiceLoggingEnabled: true,
+		PublishLoggingEnabled: true,
 	}, func(b *Broker) {
 		connA, connB := net.Pipe()
 

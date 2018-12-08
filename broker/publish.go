@@ -23,7 +23,7 @@ func (b *Broker) doPublish(msgBytes []byte, pub *cellaserv.Publish) {
 	b.logger.Debugf("[Publish] Publishing %s", event)
 
 	// Handle log publishes
-	if b.Options.ServiceLoggingEnabled && strings.HasPrefix(event, "log.") {
+	if b.Options.PublishLoggingEnabled && strings.HasPrefix(event, "log.") {
 		event := pub.Event[len("log."):]
 		data := string(pub.Data) // expect data to be utf8
 		b.handleLoggingPublish(event, data)

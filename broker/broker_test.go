@@ -22,7 +22,7 @@ func brokerTestWithOptions(t *testing.T, options Options, testFn func(b *Broker)
 		options.ListenAddress = ":4200"
 	}
 	ctxBroker, cancelBroker := context.WithCancel(context.Background())
-	broker := New(&options, logging.MustGetLogger("broker"))
+	broker := New(options, logging.MustGetLogger("broker"))
 
 	go func() {
 		t.Helper()
