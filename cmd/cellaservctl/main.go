@@ -4,35 +4,17 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
 	"bitbucket.org/evolutek/cellaserv3/broker"
 	"bitbucket.org/evolutek/cellaserv3/client"
 	"bitbucket.org/evolutek/cellaserv3/common"
+	"github.com/pkg/errors"
 
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
-)
-
-var (
-	request     = kingpin.Command("request", "Makes a request to a service. Alias: r").Alias("r")
-	requestPath = request.Arg("path", "Request path. Example service.method or service/id.method.").Required().String()
-	requestArgs = request.Arg("args", "Key=value arguments of the method. Example: x=42 y=43").StringMap()
-
-	publish      = kingpin.Command("publish", "Sends a publish event. Alias: p").Alias("p")
-	publishEvent = publish.Arg("event", "Event name to publish.").Required().String()
-	publishArgs  = publish.Arg("args", "Key=value content of event to publish. Example: x=42 y=43").StringMap()
-
-	subscribe             = kingpin.Command("subscribe", "Listens for an event. Alias: s").Alias("s")
-	subscribeEventPattern = subscribe.Arg("event", "Event name pattern to subscribe to.").Required().String()
-	subscribeMonitor      = subscribe.Flag("monitor", "Instead of exiting after received a single event, wait indefinitely.").Short('m').Bool()
-
-	spy     = kingpin.Command("spy", "Listens to all requests and responses of a service.")
-	spyPath = spy.Arg("path", "Spy path. Example service or service/id").Required().String()
-
-	listServices = kingpin.Command("list-services", "Lists services currently registered. Alias: ls").Alias("ls")
-
-	listConnections = kingpin.Command("list-connections", "Lists connections currently established. Alias: lc").Alias("lc")
 )
 
 // Returns a string representation of a cellaserv.Request object.
@@ -50,10 +32,42 @@ func replyToString(rep *cellaserv.Reply) string {
 }
 
 func main() {
+	a := kingpin.New(filepath.Base(os.Args[0]), "Control the cellaserv broker")
+	a.Version(common.GetVersion())
+	a.HelpFlag.Short('h')
+
+	request := a.Command("request", "Makes a request to a service. Alias: r").Alias("r")
+	requestPath := request.Arg("path", "Request path. Example service.method or service/id.method.").Required().String()
+	requestArgs := request.Arg("args", "Key=value arguments of the method. Example: x=42 y=43").StringMap()
+
+	publish := a.Command("publish", "Sends a publish event. Alias: p").Alias("p")
+	publishEvent := publish.Arg("event", "Event name to publish.").Required().String()
+	publishArgs := publish.Arg("args", "Key=value content of event to publish. Example: x=42 y=43").StringMap()
+
+	subscribe := a.Command("subscribe", "Listens for an event. Alias: s").Alias("s")
+	subscribeEventPattern := subscribe.Arg("event", "Event name pattern to subscribe to.").Required().String()
+	subscribeMonitor := subscribe.Flag("monitor", "Instead of exiting after received a single event, wait indefinitely.").Short('m').Bool()
+
+	spy := a.Command("spy", "Listens to all requests and responses of a service.")
+	spyPath := spy.Arg("path", "Spy path. Example service or service/id").Required().String()
+
+	a.Command("list-services", "Lists services currently registered. Alias: ls").Alias("ls")
+
+	a.Command("list-connections", "Lists connections currently established. Alias: lc").Alias("lc")
+
+	common.AddFlags(a)
+
+	command, err := a.Parse(os.Args[1:])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, errors.Wrapf(err, "Could not parse command line arguments"))
+		a.Usage(os.Args[1:])
+		os.Exit(2)
+	}
+
 	// Connect to cellaserv
 	conn := client.NewClient(client.ClientOpts{})
 
-	switch kingpin.Parse() {
+	switch command {
 	case "request":
 		// Parse service and method
 		requestPathSlice := strings.Split(*requestPath, ".")

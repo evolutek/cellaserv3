@@ -5,35 +5,22 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"bitbucket.org/evolutek/cellaserv3/broker"
 	"bitbucket.org/evolutek/cellaserv3/broker/web"
 	"bitbucket.org/evolutek/cellaserv3/common"
+
 	"github.com/oklog/run"
+	"github.com/pkg/errors"
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
-var (
-	// Command line flags
-	versionFlag        = flag.Bool("version", false, "output version information and exit")
-	addrListenFlag     = flag.String("listen-addr", ":4200", "listening address of the server")
-	httpAddrListenFlag = flag.String("http-listen-addr", ":4280", "listening address of the internal HTTP server")
-	httpAssetsRootFlag = flag.String("http-assets-root", "/usr/share/cellaserv/http", "location of the http assets")
-	httpExternalUrl    = flag.String("http-external-url", "", "prefix of the web component URLs")
-	storageRoot        = flag.String("storage-root", "/var/cellaserv", "base path for persistent storage")
-	storeLogs          = flag.Bool("store-logs", true, "whether to store logs, enables using cellaserv.get_logs()")
-)
-
-func versionAndDie() {
-	fmt.Println("cellaserv3 version", common.Version)
-	os.Exit(0)
-}
-
-func locateHttpAssets() string {
+func locateHttpAssets(userLocation string) string {
 	locations := []string{
-		*httpAssetsRootFlag,
+		userLocation,
 		"broker/web/ui",       // when started from repository root
 		"../../broker/web/ui", // when started from the location of this file
 	}
@@ -46,34 +33,56 @@ func locateHttpAssets() string {
 			return location
 		}
 	}
-	return *httpAssetsRootFlag
+	return userLocation
 }
 
 func main() {
-	// Parse command line arguments
-	flag.Parse()
+	brokerOptions := broker.Options{}
+	webOptions := web.Options{}
 
-	if *versionFlag {
-		versionAndDie()
+	a := kingpin.New(filepath.Base(os.Args[0]), "The cellaserv message broker")
+	a.Version(common.GetVersion())
+	a.HelpFlag.Short('h')
+
+	// Broker options
+	a.Flag("listen-addr", "listening address of the server").
+		Default(":4200").
+		StringVar(&brokerOptions.ListenAddress)
+	a.Flag("storage-root", "base path for persistent storage").
+		Default("/var/cellaserv").
+		StringVar(&brokerOptions.VarRoot)
+	a.Flag("store-logs", "whether to store logs, enables using cellaserv.get_logs()").
+		Default("true").
+		BoolVar(&brokerOptions.PublishLoggingEnabled)
+
+	// Web options
+	a.Flag("http-listen-addr", "listening address of the internal HTTP server").
+		Default(":4280").
+		StringVar(&webOptions.ListenAddr)
+	a.Flag("http-assets-root", "location of the http assets").
+		Default("/usr/share/cellaserv/http").
+		StringVar(&webOptions.AssetsPath)
+	a.Flag("http-external-url", "prefix of the web component URLs").
+		StringVar(&webOptions.ExternalURLPath)
+
+	common.AddFlags(a)
+
+	_, err := a.Parse(os.Args[1:])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, errors.Wrapf(err, "Could not parse command line arguments"))
+		a.Usage(os.Args[1:])
+		os.Exit(2)
 	}
+
+	webOptions.AssetsPath = locateHttpAssets(webOptions.AssetsPath)
 
 	log := common.NewLogger("cellaserv")
 
 	// Broker component
-	brokerOptions := broker.Options{
-		ListenAddress:         *addrListenFlag,
-		VarRoot:               *storageRoot,
-		PublishLoggingEnabled: *storeLogs,
-	}
 	broker := broker.New(brokerOptions, common.NewLogger("broker"))
 
 	// Web component
-	webOptions := &web.Options{
-		ListenAddr:      *httpAddrListenFlag,
-		AssetsPath:      locateHttpAssets(),
-		ExternalURLPath: *httpExternalUrl,
-	}
-	webHander := web.New(webOptions, common.NewLogger("web"), broker)
+	webHander := web.New(&webOptions, common.NewLogger("web"), broker)
 
 	// Contexts
 	ctxBroker, cancelBroker := context.WithCancel(context.Background())
