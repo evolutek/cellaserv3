@@ -60,8 +60,9 @@ type Broker struct {
 	serviceLoggingRoot    string
 	serviceLoggingLoggers map[string]*os.File
 
+	started chan struct{}
 	// The broker must quit
-	quitCh chan struct{}
+	quit chan struct{}
 }
 
 // Manage incoming connexions
@@ -303,7 +304,8 @@ func New(options Options, logger *logging.Logger) *Broker {
 		subscriberMatchMap: make(map[string][]net.Conn),
 		connList:           list.New(),
 
-		quitCh: make(chan struct{}),
+		started: make(chan struct{}),
+		quit:    make(chan struct{}),
 	}
 
 	// Setup monitoring

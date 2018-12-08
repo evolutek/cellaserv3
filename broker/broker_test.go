@@ -32,8 +32,7 @@ func brokerTestWithOptions(t *testing.T, options Options, testFn func(b *Broker)
 		}
 	}()
 
-	// Give time to the broker to start
-	time.Sleep(50 * time.Millisecond)
+	<-broker.started
 
 	// Run the test
 	testFn(broker)
