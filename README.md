@@ -84,13 +84,11 @@ TODO: document
 
 ## TODO
 
-* P0 clean the web directory, only keep the REST interface and minimalistic html interface
-* P1 backport service logging from cellaserv2
-* P1 prometheus monitoring in the go client
-* P2 replace golang logging with recent op/go-logging
-* P2 add back `CS_DEBUG`
-
-* client
-
-  * P2 add config variables
-  * P2 add service dependencies
+* P0 cellaserv: clean the web directory, only keep the REST interface and minimalistic html interface
+* P1 cellaservctl: add logs command
+* P1 use errors.Wrapf
+* P1 client: prometheus monitoring in the go client
+* P2 common: add back `CS_DEBUG`
+* P2 client: add config variables
+* P2 client: add service dependencies
+* P2 Fix arch linux package
