@@ -178,18 +178,23 @@ func (b *Broker) handleVersion(conn net.Conn, req *cellaserv.Request) {
 	b.sendReply(conn, req, data)
 }
 
+type GetLogsRequest struct {
+	Pattern string
+}
+
 func (b *Broker) handleGetLogs(conn net.Conn, req *cellaserv.Request) {
-	if req.Data == nil {
-		b.logger.Warning("[Cellaserv] Log request does not specify event")
+	var data GetLogsRequest
+	err := json.Unmarshal(req.Data, &data)
+	if err != nil {
+		b.logger.Warningf("[Cellaserv] Could not get logs: %s", err)
 		b.sendReplyError(conn, req, cellaserv.Reply_Error_BadArguments)
 		return
 	}
 
-	event := string(req.Data)
-	pattern := path.Join(b.serviceLoggingRoot, event)
+	pattern := path.Join(b.serviceLoggingRoot, data.Pattern)
 
 	if !strings.HasPrefix(pattern, path.Join(b.Options.VarRoot, "logs")) {
-		b.logger.Warningf("[Cellaserv] Don't try to do directory traversal: %s", event)
+		b.logger.Warningf("[Cellaserv] Don't try to do directory traversal: %s", data.Pattern)
 		b.sendReplyError(conn, req, cellaserv.Reply_Error_BadArguments)
 		return
 	}
@@ -198,13 +203,13 @@ func (b *Broker) handleGetLogs(conn net.Conn, req *cellaserv.Request) {
 	filenames, err := filepath.Glob(pattern)
 
 	if err != nil {
-		b.logger.Warningf("[Cellaserv] Invalid log globbing : %s, %s", event, err)
+		b.logger.Warningf("[Cellaserv] Invalid log globbing : %s, %s", data.Pattern, err)
 		b.sendReplyError(conn, req, cellaserv.Reply_Error_BadArguments)
 		return
 	}
 
 	if len(filenames) == 0 {
-		b.logger.Warningf("[Cellaserv] No such logs: %s", event)
+		b.logger.Warningf("[Cellaserv] No such logs: %s", data.Pattern)
 		b.sendReplyError(conn, req, cellaserv.Reply_Error_BadArguments)
 		return
 	}

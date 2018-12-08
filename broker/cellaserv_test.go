@@ -35,7 +35,7 @@ func TestPublishLog(t *testing.T) {
 			req := &cellaserv.Request{
 				ServiceName: "cellaserv",
 				Method:      "get_logs",
-				Data:        []byte("test"),
+				Data:        []byte(`{"pattern": "test"}`),
 			}
 			b.handleGetLogs(connA, req)
 		}()
