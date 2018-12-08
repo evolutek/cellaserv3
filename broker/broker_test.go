@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	logging "github.com/op/go-logging"
+	"bitbucket.org/evolutek/cellaserv3/common"
 )
 
 // brokerTest is a test harness for testing the broker. It takes care of
@@ -22,7 +22,7 @@ func brokerTestWithOptions(t *testing.T, options Options, testFn func(b *Broker)
 		options.ListenAddress = ":4200"
 	}
 	ctxBroker, cancelBroker := context.WithCancel(context.Background())
-	broker := New(options, logging.MustGetLogger("broker"))
+	broker := New(options, common.NewLogger("broker"))
 
 	go func() {
 		t.Helper()
