@@ -12,7 +12,7 @@ import (
 
 func WithTestBroker(t *testing.T, listenAddress string, testFn func(client.ClientOpts)) {
 	ctxBroker, cancelBroker := context.WithCancel(context.Background())
-	brokerOptions := &broker.Options{ListenAddress: listenAddress}
+	brokerOptions := broker.Options{ListenAddress: listenAddress}
 	broker := broker.New(brokerOptions, logging.MustGetLogger("broker"))
 
 	go func() {

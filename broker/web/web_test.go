@@ -8,12 +8,12 @@ import (
 	"time"
 
 	"bitbucket.org/evolutek/cellaserv3/broker"
-	"github.com/prometheus/prometheus/util/testutil"
 	logging "github.com/op/go-logging"
+	"github.com/prometheus/prometheus/util/testutil"
 )
 
 func TestWeb(t *testing.T) {
-	brokerOptions := &broker.Options{ListenAddress: ":4200"}
+	brokerOptions := broker.Options{ListenAddress: ":4200"}
 	broker := broker.New(brokerOptions, logging.MustGetLogger("broker"))
 
 	opts := &Options{

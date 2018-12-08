@@ -13,7 +13,7 @@ import (
 func TestServiceRequest(t *testing.T) {
 	ctxBroker, cancelBroker := context.WithCancel(context.Background())
 
-	brokerOptions := &broker.Options{
+	brokerOptions := broker.Options{
 		ListenAddress: ":4201",
 	}
 	broker := broker.New(brokerOptions, logging.MustGetLogger("test"))
