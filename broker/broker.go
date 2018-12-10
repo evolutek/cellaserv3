@@ -4,12 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net"
 	"sync"
 	"time"
 
-	"net/http"
 	_ "net/http/pprof"
 
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
@@ -337,9 +335,9 @@ func New(options Options, logger *logging.Logger) *Broker {
 		options.RequestTimeoutSec = 5
 	}
 
-	go func() {
-		log.Println(http.ListenAndServe("localhost:6060", nil))
-	}()
+	// go func() {
+	// 	log.Println(http.ListenAndServe("localhost:6060", nil))
+	// }()
 
 	m := &Monitoring{
 		Registry: prometheus.NewRegistry(),
