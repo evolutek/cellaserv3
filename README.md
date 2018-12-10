@@ -31,7 +31,46 @@ See `cellaserv --help`.
 ## Concepts and features
 
 Cellaserv supports both the request/reply and subscribe/publish communication
-methods.
+primitives.
+
+### Services
+
+* Any client can registered any number of service.
+* A service is registered by sending an `<name, identifcation>` pair to cellaserv.
+* A service is referenced by two strings: its name and identification. In
+  object oriented design, the name of the service is the class and the
+  identification is an instance.
+* If a client register a service that is already present in cellaserv, the old
+  service is replaced by the new.
+* The singleton instance is implemented with `identification==""`.
+* No method are mandatory, also some are commonly implemented by clients:
+
+  * `ping()` to check that the service is alive
+  * `status() string` to get a one-line status of the service
+  * `doc() string` to get the full documentation of a service
+  * `quit()` to quit the service
+
+### Requests
+
+* Any cellaserv client can send a request.
+* Requests are directed to a single `<service, identification, method>` trio.
+* Requests can have data attached, which is stored as a binary blob, but most
+  client expect a JSON serialized message. The Request data is usually the
+  arguments of the method.
+* Replies can also have data attached, as a binary blob too and likewise,
+  usually used to store a serialized JSON message. They also have a dedicated
+  error field which can be set by the service, in case the request data was
+  invalid, for example.
+* Replies should be sent in a short (<5 seconds by default) amount of time,
+  otherwise cellaserv will send a timeout reply error on behalf of the service.
+
+### Subscribes
+
+Any connection can send a subscribe message and receive publish messages whose
+event string matches the subscribed pattern. The subscribe pattern syntax is
+https://golang.org/pkg/path/filepath/#Match.
+
+## Advanced features and concepts
 
 ### HTTP interface
 
@@ -42,25 +81,6 @@ current status of cellaserv.
 
 TODO: document
 
-### Services
-
-A service is referenced by it's name and identification. In object oriented
-design, the name of the service is the class and the identification is an
-instance.
-
-### Requests
-
-TODO: document
-
-### Subscribes
-
-Any connection can send a subscribe message and receive publish messages whose
-event string matches the subscribed pattern. The subscribe pattern syntax is
-https://golang.org/pkg/path/filepath/#Match.
-
-## Advanced features
-
-On top of the basic req/rep, pub/sub features, cellaserv offers
 
 ### Introspection with the built-in cellaserv service
 
@@ -86,9 +106,12 @@ TODO: document
 
 * P0 cellaserv: clean the web directory, only keep the REST interface and minimalistic html interface
 * P1 cellaservctl: add logs command
-* P1 use errors.Wrapf
 * P1 client: prometheus monitoring in the go client
-* P2 common: add back `CS_DEBUG`
+* P1 use errors.Wrapf
+* P1 store everything related to a connection to an internal conn struct, simplifies locking
+* P1 decouple services and spies
+* P2 fix arch linux package
 * P2 client: add config variables
 * P2 client: add service dependencies
-* P2 Fix arch linux package
+* P2 common: add back `CS_DEBUG`
+* P2 use structured logging
