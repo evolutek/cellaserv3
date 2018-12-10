@@ -2,15 +2,19 @@ package broker
 
 import (
 	"net"
+	"sync"
 
 	"bitbucket.org/evolutek/cellaserv3/common"
+	logging "github.com/op/go-logging"
 )
 
 type service struct {
 	Conn           net.Conn
 	Name           string
 	Identification string
-	Spies          []net.Conn
+	spiesMtx       sync.RWMutex
+	spies          []*client
+	logger         *logging.Logger
 }
 
 type ServiceJSON struct {
@@ -20,7 +24,12 @@ type ServiceJSON struct {
 }
 
 func newService(conn net.Conn, name string, ident string) *service {
-	s := &service{conn, name, ident, nil}
+	s := &service{
+		Conn:           conn,
+		Name:           name,
+		Identification: ident,
+	}
+	s.logger = common.NewLogger(s.String())
 	return s
 }
 
@@ -41,5 +50,13 @@ func (s *service) JSONStruct() *ServiceJSON {
 }
 
 func (s *service) sendMessage(msg []byte) {
-	common.SendRawMessage(s.Conn, msg)
+	// No locking, multiple goroutine can write to a conn
+	err := common.SendRawMessage(s.Conn, msg)
+	if err != nil {
+		s.logger.Errorf("Could not send message: %s", err)
+	}
+}
+
+// The service lock must be held by the caller
+func (s *service) removeSpy(spy *client) {
 }

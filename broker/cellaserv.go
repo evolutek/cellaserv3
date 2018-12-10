@@ -2,6 +2,7 @@ package broker
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"path"
@@ -40,8 +41,9 @@ type SpyRequest struct {
 // The name of the connection is normally given when a service registers.
 // Connections that want to be named too can use this command to do so.
 //
-// Request payload format: {"name" : string}
+// TODO(halfr): rename to Name
 func (b *Broker) handleDescribeConn(conn net.Conn, req *cellaserv.Request) {
+	// TODO(halfr): make this a DescribeConnRequest struct
 	var data struct {
 		Name string
 	}
@@ -52,13 +54,21 @@ func (b *Broker) handleDescribeConn(conn net.Conn, req *cellaserv.Request) {
 		return
 	}
 
-	b.connNameMap[conn] = data.Name
-	newName := b.connDescribe(conn)
-
-	pubJSON, _ := json.Marshal(ConnectionJSON{conn.RemoteAddr().String(), newName})
-	b.cellaservPublish(logConnRename, pubJSON)
-
 	b.logger.Debugf("[Cellaserv] Describe %s as %s", conn.RemoteAddr(), data.Name)
+
+	// Grab internal conn struct
+	c, ok := b.getClientByConn(conn)
+	if !ok {
+		// Connection gone?
+		return
+	}
+	c.name = data.Name
+
+	pubJSON, _ := json.Marshal(ConnectionJSON{
+		Addr: conn.RemoteAddr().String(),
+		Name: data.Name,
+	})
+	b.cellaservPublish(logConnRename, pubJSON)
 
 	b.sendReply(conn, req, nil) // Empty reply
 }
@@ -86,11 +96,12 @@ func (b *Broker) handleListServices(conn net.Conn, req *cellaserv.Request) {
 
 func (b *Broker) GetConnectionsJSON() []ConnectionJSON {
 	var conns []ConnectionJSON
-	for c := b.connList.Front(); c != nil; c = c.Next() {
-		connElt := c.Value.(net.Conn)
-		conns = append(conns,
-			ConnectionJSON{connElt.RemoteAddr().String(), b.connDescribe(connElt)})
-	}
+	b.connMap.Range(func(key, value interface{}) bool {
+		c := value.(*client)
+		conn := ConnectionJSON{c.conn.RemoteAddr().String(), c.name}
+		conns = append(conns, conn)
+		return true
+	})
 	return conns
 }
 
@@ -109,17 +120,23 @@ type EventsJSON map[string][]string
 func (b *Broker) GetEventsJSON() EventsJSON {
 	events := make(EventsJSON)
 
-	fillMap := func(subMap map[string][]net.Conn) {
-		for event, conns := range subMap {
+	fillMap := func(subMap map[string][]*client) {
+		for event, clients := range subMap {
 			var connSlice []string
-			for _, connItem := range conns {
-				connSlice = append(connSlice, connItem.RemoteAddr().String())
+			for _, c := range clients {
+				connSlice = append(connSlice, c.conn.RemoteAddr().String())
 			}
 			events[event] = connSlice
 		}
 	}
+
+	b.subscriberMapMtx.RLock()
 	fillMap(b.subscriberMap)
+	b.subscriberMapMtx.RUnlock()
+
+	b.subscriberMatchMapMtx.RLock()
 	fillMap(b.subscriberMatchMap)
+	b.subscriberMatchMapMtx.RUnlock()
 
 	return events
 }
@@ -150,7 +167,9 @@ func (b *Broker) handleSpy(conn net.Conn, req *cellaserv.Request) {
 		return
 	}
 
+	b.servicesMtx.RLock()
 	srvc, ok := b.services[data.Service][data.Identification]
+	b.servicesMtx.RUnlock()
 	if !ok {
 		b.logger.Warningf("[Cellaserv] Could not spy, no such service: %s %s", data.Service,
 			data.Identification)
@@ -161,8 +180,19 @@ func (b *Broker) handleSpy(conn net.Conn, req *cellaserv.Request) {
 	b.logger.Debugf("[Cellaserv] %s spies on %s/%s", b.connDescribe(conn), data.Service,
 		data.Identification)
 
-	srvc.Spies = append(srvc.Spies, conn)
-	b.connSpies[conn] = append(b.connSpies[conn], srvc)
+	c, ok := b.getClientByConn(conn)
+	if !ok {
+		b.logger.Warningf("[Cellaserv]: Client disconnected while processing spy: %s", conn)
+		return
+	}
+
+	srvc.spiesMtx.Lock()
+	srvc.spies = append(srvc.spies, c)
+	srvc.spiesMtx.Unlock()
+
+	c.mtx.Lock()
+	c.spies = append(c.spies, srvc)
+	c.mtx.Unlock()
 
 	b.sendReply(conn, req, nil)
 }
@@ -182,53 +212,61 @@ type GetLogsRequest struct {
 	Pattern string
 }
 
+type GetLogsResponse map[string]string
+
+func (b *Broker) GetLogsByPattern(pattern string) (GetLogsResponse, error) {
+	pathPattern := path.Join(b.serviceLoggingRoot, pattern)
+
+	if !strings.HasPrefix(pathPattern, path.Join(b.Options.VarRoot, "logs")) {
+		err := fmt.Errorf("Don't try to do directory traversal: %s", pattern)
+		return nil, err
+	}
+
+	// Globbing is allowed
+	filenames, err := filepath.Glob(pathPattern)
+	if err != nil {
+		err := fmt.Errorf("Invalid log globbing: %s, %s", pattern, err)
+		return nil, err
+	}
+
+	if len(filenames) == 0 {
+		err := fmt.Errorf("No such logs: %s", pattern)
+		return nil, err
+	}
+
+	logs := make(GetLogsResponse)
+
+	for _, filename := range filenames {
+		data, err := ioutil.ReadFile(filename)
+		if err != nil {
+			err := fmt.Errorf("Could not open log: %s: %s", filename, err)
+			return nil, err
+		}
+		logs[path.Base(filename)] = string(data)
+	}
+
+	return logs, nil
+}
+
 func (b *Broker) handleGetLogs(conn net.Conn, req *cellaserv.Request) {
 	var data GetLogsRequest
 	err := json.Unmarshal(req.Data, &data)
+	if err != nil {
+		b.logger.Warningf("[Cellaserv] Invalid get_logs() request: %s", err)
+		b.sendReplyError(conn, req, cellaserv.Reply_Error_BadArguments)
+		return
+	}
+
+	logs, err := b.GetLogsByPattern(data.Pattern)
 	if err != nil {
 		b.logger.Warningf("[Cellaserv] Could not get logs: %s", err)
 		b.sendReplyError(conn, req, cellaserv.Reply_Error_BadArguments)
 		return
 	}
 
-	pattern := path.Join(b.serviceLoggingRoot, data.Pattern)
-
-	if !strings.HasPrefix(pattern, path.Join(b.Options.VarRoot, "logs")) {
-		b.logger.Warningf("[Cellaserv] Don't try to do directory traversal: %s", data.Pattern)
-		b.sendReplyError(conn, req, cellaserv.Reply_Error_BadArguments)
-		return
-	}
-
-	// Globbing is allowed
-	filenames, err := filepath.Glob(pattern)
-
-	if err != nil {
-		b.logger.Warningf("[Cellaserv] Invalid log globbing : %s, %s", data.Pattern, err)
-		b.sendReplyError(conn, req, cellaserv.Reply_Error_BadArguments)
-		return
-	}
-
-	if len(filenames) == 0 {
-		b.logger.Warningf("[Cellaserv] No such logs: %s", data.Pattern)
-		b.sendReplyError(conn, req, cellaserv.Reply_Error_BadArguments)
-		return
-	}
-
-	logs := make(map[string]string)
-
-	for _, filename := range filenames {
-		data, err := ioutil.ReadFile(filename)
-		if err != nil {
-			b.logger.Warningf("[Cellaserv] Could not open log: %s: %s", filename, err)
-			b.sendReplyError(conn, req, cellaserv.Reply_Error_BadArguments)
-			return
-		}
-		logs[path.Base(filename)] = string(data)
-	}
-
 	logs_json, err := json.Marshal(logs)
 	if err != nil {
-		b.logger.Warningf("[Cellaserv] Could not serialise log: %s", err)
+		b.logger.Warningf("[Cellaserv] Could not serialize response: %s", err)
 		b.sendReplyError(conn, req, cellaserv.Reply_Error_BadArguments)
 		return
 	}

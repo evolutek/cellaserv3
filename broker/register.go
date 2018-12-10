@@ -13,9 +13,22 @@ func (b *Broker) handleRegister(conn net.Conn, msg *cellaserv.Register) {
 	ident := msg.GetIdentification()
 	b.logger.Infof("[Services] New %s/%s", name, ident)
 
+	c, ok := b.getClientByConn(conn)
+	if !ok {
+		b.logger.Warningf("[Register] Connection disconected while handling register: %s", conn)
+		return
+	}
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+
+	b.servicesMtx.Lock()
+	defer b.servicesMtx.Unlock()
+
 	if _, ok := b.services[name]; !ok {
 		b.services[name] = make(map[string]*service)
 	}
+
+	registeredService := newService(conn, name, ident)
 
 	// Check for duplicate services
 	if s, ok := b.services[name][ident]; ok {
@@ -24,17 +37,12 @@ func (b *Broker) handleRegister(conn net.Conn, msg *cellaserv.Register) {
 		pubJSON, _ := json.Marshal(s.JSONStruct())
 		b.cellaservPublish(logLostService, pubJSON)
 
-		sc := b.servicesConn[s.Conn]
-		for i, ss := range sc {
+		for i, ss := range c.services {
 			if ss.Name == name && ss.Identification == ident {
 				// Remove from slice
-				sc[i] = sc[len(sc)-1]
-				b.servicesConn[s.Conn] = sc[:len(sc)-1]
-
-				// Clear key from map if list is empty
-				if len(b.servicesConn[s.Conn]) == 0 {
-					delete(b.servicesConn, s.Conn)
-				}
+				c.services[i] = c.services[len(c.services)-1]
+				c.services = c.services[:len(c.services)-1]
+				break
 			}
 		}
 	} else {
@@ -50,13 +58,11 @@ func (b *Broker) handleRegister(conn net.Conn, msg *cellaserv.Register) {
 		}
 	}
 
-	registeredService := newService(conn, name, ident)
-
 	// This makes all requests go to the new service
 	b.services[name][ident] = registeredService
 
-	// Keep track of origin connection in order to remove it when the connection is closed
-	b.servicesConn[conn] = append(b.servicesConn[conn], registeredService)
+	// Keep track of origin client in order to remove it when the connection is closed
+	c.services = append(c.services, registeredService)
 
 	// Publish new service events
 	pubJSON, _ := json.Marshal(registeredService.JSONStruct())

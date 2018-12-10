@@ -1,13 +1,16 @@
 package broker
 
 import (
-	"container/list"
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net"
-	"os"
+	"sync"
 	"time"
+
+	"net/http"
+	_ "net/http/pprof"
 
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
 	"bitbucket.org/evolutek/cellaserv3/common"
@@ -28,6 +31,23 @@ type Monitoring struct {
 	requests *prometheus.HistogramVec
 }
 
+// client represents a single connnection to cellaserv
+type client struct {
+	mtx  sync.Mutex // protects slices below
+	conn net.Conn   // connection of this client
+	name string     // name of this client
+	// TODO(halfr): rename to "spying"
+	spies    []*service // services spied by this client
+	services []*service // services registered by this clietn
+}
+
+func (c *client) String() string {
+	if c.name != "" {
+		return c.name
+	}
+	return c.conn.RemoteAddr().String()
+}
+
 type Broker struct {
 	Monitoring *Monitoring
 
@@ -35,45 +55,132 @@ type Broker struct {
 
 	logger *logging.Logger
 
-	// List of all currently handled connections
-	connList *list.List
-
-	// Map a connection to a name, filled with cellaserv.descrbie-conn
-	connNameMap map[net.Conn]string
-
-	// Map a connection to the service it spies
-	connSpies map[net.Conn][]*service
+	// All currently handled connections
+	// TODO(halfr): rename to clientsByConn
+	connMap sync.Map // map[net.Conn]*client
 
 	// Map of currently connected services by name, then identification
-	services map[string]map[string]*service
-
-	// Map of all services associated with a connection
-	servicesConn map[net.Conn][]*service
+	servicesMtx sync.RWMutex
+	services    map[string]map[string]*service
 
 	// Map of requests ids with associated timeout timer
-	reqIds             map[uint64]*requestTracking
-	subscriberMap      map[string][]net.Conn
-	subscriberMatchMap map[string][]net.Conn
+	reqIdsMtx             sync.RWMutex
+	reqIds                map[uint64]*requestTracking
+	subscriberMapMtx      sync.RWMutex
+	subscriberMap         map[string][]*client
+	subscriberMatchMapMtx sync.RWMutex
+	subscriberMatchMap    map[string][]*client
 
 	// Service logging
 	serviceLoggingSession string
 	serviceLoggingRoot    string
-	serviceLoggingLoggers map[string]*os.File
+	serviceLoggingLoggers sync.Map // map[string]*os.File
 
+	// The broker is started
 	started chan struct{}
 	// The broker must quit
 	quit chan struct{}
 }
 
-// Manage incoming connexions
+func (b *Broker) getClientByConn(conn net.Conn) (*client, bool) {
+	elt, ok := b.connMap.Load(conn)
+	return elt.(*client), ok
+}
+
+// Remove services registered by this connection. The client's mutex must be
+// held by caller.
+func (b *Broker) removeServicesOnClient(c *client) {
+	// TODO: notify goroutines waiting for acks for this service
+	for _, s := range c.services {
+		b.logger.Infof("[Service] Remove %s", s)
+		pubJSON, _ := json.Marshal(s.JSONStruct())
+		b.cellaservPublish(logLostService, pubJSON)
+
+		b.servicesMtx.Lock()
+		delete(b.services[s.Name], s.Identification)
+		b.servicesMtx.Unlock()
+
+		// Close connections that spied this service
+		// TODO(halfr): do not close thoses connections, instead,
+		// spying and services and make sure that if the service
+		// reconnects, the spies are automatically re-added to this
+		// service.
+		s.spiesMtx.RLock()
+		for _, c := range s.spies {
+			b.logger.Debugf("[Service] Close spy conn: %s", c)
+			if err := c.conn.Close(); err != nil {
+				b.logger.Errorf("Could not close connection: %s", err)
+			}
+		}
+		s.spiesMtx.RLock()
+	}
+}
+
+func (b *Broker) removeSubscriptionsOfClient(c *client) {
+	var removedSubscriptions []logSubscriberJSON
+
+	// Remove subscribes from this connection
+	removeConnFromMap := func(subMap map[string][]*client) {
+		for key, subs := range subMap {
+			for i, subClient := range subs {
+				if c == subClient {
+					// Remove from list of subscribers
+					subs[i] = subs[len(subs)-1]
+					subMap[key] = subs[:len(subs)-1]
+
+					if len(subMap[key]) == 0 {
+						delete(subMap, key)
+						break
+					}
+
+					removedSubscriptions = append(removedSubscriptions,
+						logSubscriberJSON{key, c.conn.RemoteAddr().String()})
+				}
+			}
+		}
+	}
+
+	b.subscriberMapMtx.Lock()
+	removeConnFromMap(b.subscriberMap)
+	b.subscriberMapMtx.Unlock()
+	b.subscriberMatchMapMtx.Lock()
+	removeConnFromMap(b.subscriberMatchMap)
+	b.subscriberMatchMapMtx.Unlock()
+
+	for _, removedSub := range removedSubscriptions {
+		pubJSON, _ := json.Marshal(removedSub)
+		b.cellaservPublish(logLostSubscriber, pubJSON)
+	}
+
+}
+
+func (b *Broker) removeSpiesOnClient(c *client) {
+	// Remove conn from the services it spied
+	for _, srvc := range c.spies {
+		srvc.spiesMtx.Lock()
+		for i, spy := range srvc.spies {
+			if spy == c {
+				// Remove from slice
+				srvc.spies[i] = srvc.spies[len(srvc.spies)-1]
+				srvc.spies = srvc.spies[:len(srvc.spies)-1]
+				break
+			}
+		}
+		srvc.spiesMtx.Unlock()
+	}
+}
+
+// Manage incoming connexion
 func (b *Broker) handle(conn net.Conn) {
 	b.logger.Infof("[Broker] Connection opened: %s", b.connDescribe(conn))
 
+	// Register this connection
+	c := &client{conn: conn}
+	b.connMap.Store(conn, c)
+
+	// TODO(halfr): use c.ToJSON()
 	connJSON := connToJSON(conn)
 	b.cellaservPublish(logNewConnection, connJSON)
-
-	// Append to list of handled connections
-	connListElt := b.connList.PushBack(conn)
 
 	// Handle all messages received on this connection
 	for {
@@ -91,67 +198,17 @@ func (b *Broker) handle(conn net.Conn) {
 		}
 	}
 
+	// Client exited, cleaning up resources
+	c.mtx.Lock()
+	b.removeServicesOnClient(c)
+	b.removeSubscriptionsOfClient(c)
+	b.removeSpiesOnClient(c)
+	c.mtx.Unlock()
+
 	// Remove from list of handled connection
-	b.connList.Remove(connListElt)
+	b.connMap.Delete(conn)
 
-	// Clean connection name, if not given this is a noop
-	delete(b.connNameMap, conn)
-
-	// Remove services registered by this connection
-	// TODO: notify goroutines waiting for acks for this service
-	for _, s := range b.servicesConn[conn] {
-		b.logger.Infof("[Service] Remove %s", s)
-		pubJSON, _ := json.Marshal(s.JSONStruct())
-		b.cellaservPublish(logLostService, pubJSON)
-		delete(b.services[s.Name], s.Identification)
-
-		// Close connections that spied this service
-		for _, c := range s.Spies {
-			b.logger.Debugf("[Service] Close spy conn: %s", b.connDescribe(c))
-			if err := c.Close(); err != nil {
-				b.logger.Errorf("Could not close connection: %s", err)
-			}
-		}
-	}
-	delete(b.servicesConn, conn)
-
-	// Remove subscribes from this connection
-	removeConnFromMap := func(subMap map[string][]net.Conn) {
-		for key, subs := range subMap {
-			for i, subConn := range subs {
-				if conn == subConn {
-					// Remove from list of subscribers
-					subs[i] = subs[len(subs)-1]
-					subMap[key] = subs[:len(subs)-1]
-
-					pubJSON, _ := json.Marshal(
-						logSubscriberJSON{key, b.connDescribe(conn)})
-					b.cellaservPublish(logLostSubscriber, pubJSON)
-
-					if len(subMap[key]) == 0 {
-						delete(subMap, key)
-						break
-					}
-				}
-			}
-		}
-	}
-	removeConnFromMap(b.subscriberMap)
-	removeConnFromMap(b.subscriberMatchMap)
-
-	// Remove conn from the services it spied
-	for _, srvc := range b.connSpies[conn] {
-		for i, connItem := range srvc.Spies {
-			if connItem == conn {
-				// Remove from slice
-				srvc.Spies[i] = srvc.Spies[len(srvc.Spies)-1]
-				srvc.Spies = srvc.Spies[:len(srvc.Spies)-1]
-				break
-			}
-		}
-	}
-	delete(b.connSpies, conn)
-
+	// Publish that the client disconnected
 	b.cellaservPublish(logCloseConnection, connJSON)
 }
 
@@ -280,6 +337,10 @@ func New(options Options, logger *logging.Logger) *Broker {
 		options.RequestTimeoutSec = 5
 	}
 
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+
 	m := &Monitoring{
 		Registry: prometheus.NewRegistry(),
 		requests: prometheus.NewHistogramVec(prometheus.HistogramOpts{
@@ -295,14 +356,10 @@ func New(options Options, logger *logging.Logger) *Broker {
 
 		Monitoring: m,
 
-		connNameMap:        make(map[net.Conn]string),
-		connSpies:          make(map[net.Conn][]*service),
 		services:           make(map[string]map[string]*service),
-		servicesConn:       make(map[net.Conn][]*service),
 		reqIds:             make(map[uint64]*requestTracking),
-		subscriberMap:      make(map[string][]net.Conn),
-		subscriberMatchMap: make(map[string][]net.Conn),
-		connList:           list.New(),
+		subscriberMap:      make(map[string][]*client),
+		subscriberMatchMap: make(map[string][]*client),
 
 		started: make(chan struct{}),
 		quit:    make(chan struct{}),
@@ -310,11 +367,6 @@ func New(options Options, logger *logging.Logger) *Broker {
 
 	// Setup monitoring
 	m.Registry.MustRegister(m.requests)
-	m.Registry.MustRegister(prometheus.NewGaugeFunc(prometheus.GaugeOpts{
-		Namespace: "cellaserv",
-		Subsystem: "broker",
-		Name:      "connections",
-	}, func() float64 { return float64(broker.connList.Len()) }))
 	m.Registry.MustRegister(prometheus.NewGaugeFunc(prometheus.GaugeOpts{
 		Namespace: "cellaserv",
 		Subsystem: "broker",

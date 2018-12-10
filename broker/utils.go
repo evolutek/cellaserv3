@@ -3,7 +3,6 @@ package broker
 import (
 	"encoding/json"
 	"net"
-	"strings"
 
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
 	"bitbucket.org/evolutek/cellaserv3/common"
@@ -22,22 +21,9 @@ func connToJSON(conn net.Conn) []byte {
 }
 
 // connDesribe returns all the information cellaserv have on the connection
+// Deprecated: get the client and call client.String()
 func (b *Broker) connDescribe(conn net.Conn) string {
-	if name, ok := b.connNameMap[conn]; ok {
-		return name
-	}
-
-	services, ok := b.servicesConn[conn]
-	if !ok {
-		// This connection is not associated with a service
-		return conn.RemoteAddr().String()
-	}
-
-	var servcs []string
-	for _, srvc := range services {
-		servcs = append(servcs, srvc.Name)
-	}
-	return strings.Join(servcs, ", ")
+	return conn.RemoteAddr().String()
 }
 
 // Send utils

@@ -12,7 +12,7 @@ import (
 type requestTracking struct {
 	sender          net.Conn
 	timer           *time.Timer
-	spies           []net.Conn
+	spies           []*client
 	latencyObserver *prometheus.Timer
 }
 
@@ -51,7 +51,9 @@ func (b *Broker) handleRequest(conn net.Conn, msgRaw []byte, req *cellaserv.Requ
 
 	// Handle timeouts
 	handleTimeout := func() {
+		b.reqIdsMtx.RLock()
 		_, ok := b.reqIds[id]
+		b.reqIdsMtx.RUnlock()
 		if ok {
 			b.logger.Errorf("[Request] id:%d Timeout of %s", id, srvc)
 			b.sendReplyError(conn, req, cellaserv.Reply_Error_Timeout)
@@ -60,16 +62,21 @@ func (b *Broker) handleRequest(conn net.Conn, msgRaw []byte, req *cellaserv.Requ
 	timer := time.AfterFunc(b.Options.RequestTimeoutSec*time.Second, handleTimeout)
 
 	// The ID is used to track the sender of the request
-	b.reqIds[id] = &requestTracking{
+	reqTrack := &requestTracking{
 		sender:          conn,
 		timer:           timer,
-		spies:           srvc.Spies,
+		spies:           srvc.spies,
 		latencyObserver: prometheus.NewTimer(b.Monitoring.requests.WithLabelValues(req.GetServiceName(), req.GetServiceIdentification(), req.GetMethod()))}
+	b.reqIdsMtx.Lock()
+	b.reqIds[id] = reqTrack
+	b.reqIdsMtx.Unlock()
 
 	srvc.sendMessage(msgRaw)
 
 	// Forward message to the spies of this service
-	for _, spy := range srvc.Spies {
-		common.SendRawMessage(spy, msgRaw)
+	srvc.spiesMtx.RLock()
+	for _, spy := range srvc.spies {
+		common.SendRawMessage(spy.conn, msgRaw)
 	}
+	srvc.spiesMtx.RUnlock()
 }
