@@ -366,6 +366,7 @@ func newClient(conn net.Conn, name string) *client {
 					c.logger.Errorf("[Message] Handle: %s", err)
 				}
 			case <-c.closeCh:
+				close(c.quitCh)
 				break Loop
 			case <-c.quitCh:
 				break Loop
