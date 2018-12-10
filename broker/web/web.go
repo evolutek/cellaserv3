@@ -111,6 +111,7 @@ func (h *Handler) subscribe(w http.ResponseWriter, r *http.Request) {
 	<-conn.Quit()
 }
 
+// overview returns a page showing the list of connections, events and services
 func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
 	h.logger.Debug("[Web] Serving overview")
 
@@ -125,6 +126,17 @@ func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.executeTemplate(w, "overview.html", overview)
+}
+
+func (h *Handler) logs(w http.ResponseWriter, r *http.Request) {
+	h.logger.Debug("[Web] Serving logs")
+	pattern := route.Param(r.Context(), "pattern")
+	logs, err := h.broker.GetLogsByPattern(pattern)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	h.executeTemplate(w, "logs.html", logs)
 }
 
 func tmplFuncs(options *Options) template_text.FuncMap {
@@ -185,6 +197,8 @@ func New(o *Options, logger *logging.Logger, broker *broker.Broker) *Handler {
 		http.Redirect(w, r, "/overview", http.StatusFound)
 	})
 	router.Get("/overview", h.overview)
+	router.Get("/logs/:pattern", h.logs)
+
 	router.Get("/static/*filepath", route.FileServe(path.Join(o.AssetsPath, "static")))
 	router.Get("/metrics", promhttp.HandlerFor(prometheus.Gatherers{prometheus.DefaultGatherer, broker.Monitoring.Registry}, promhttp.HandlerOpts{}).ServeHTTP)
 
