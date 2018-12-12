@@ -18,25 +18,23 @@ func (b *Broker) handlePublish(conn net.Conn, msgBytes []byte, pub *cellaserv.Pu
 }
 
 func (b *Broker) doPublish(msgBytes []byte, pub *cellaserv.Publish) {
-	event := pub.Event
-
-	// Logging
-	b.logger.Debugf("[Publish] Publishing %s", event)
-
-	// Handle log publishes
-	if b.Options.PublishLoggingEnabled && strings.HasPrefix(event, "log.") {
-		event := pub.Event[len("log."):]
-		data := string(pub.Data) // expect data to be utf8
-		b.handleLoggingPublish(event, data)
-	}
-
 	// Holds subscribers for this publish
 	var subs []*client
+
+	// Logging
+	b.logger.Debugf("[Publish] Publishing %s", pub.Event)
+
+	// Handle log publishes
+	if b.Options.PublishLoggingEnabled && strings.HasPrefix(pub.Event, "log.") {
+		loggingEvent := pub.Event[len("log."):]
+		data := string(pub.Data) // expect data to be utf8
+		b.handleLoggingPublish(loggingEvent, data)
+	}
 
 	// Handle glob susbscribers
 	b.subscriberMapMtx.RLock()
 	for pattern, clients := range b.subscriberMatchMap {
-		matched, _ := filepath.Match(pattern, event)
+		matched, _ := filepath.Match(pattern, pub.Event)
 		if matched {
 			subs = append(subs, clients...)
 		}
@@ -44,7 +42,7 @@ func (b *Broker) doPublish(msgBytes []byte, pub *cellaserv.Publish) {
 	b.subscriberMapMtx.RUnlock()
 
 	// Add exact matches
-	subs = append(subs, b.subscriberMap[event]...)
+	subs = append(subs, b.subscriberMap[pub.Event]...)
 
 	for _, c := range subs {
 		b.logger.Debugf("[Publish] Forwarding %s to %s", pub.GetEvent(), c.name)
@@ -52,32 +50,32 @@ func (b *Broker) doPublish(msgBytes []byte, pub *cellaserv.Publish) {
 	}
 }
 
-func (b *Broker) rotateServiceLogs() error {
-	b.serviceLoggingSession = time.Now().Format(time.RFC3339)
-	b.serviceLoggingRoot = path.Join(b.Options.VarRoot, "logs", b.serviceLoggingSession)
-	b.serviceLoggingLoggers = sync.Map{} // reset
-	return os.MkdirAll(b.serviceLoggingRoot, 0777)
+func (b *Broker) rotatePublishLoggers() error {
+	b.publishLoggingSession = time.Now().Format(time.RFC3339)
+	b.publishLoggingRoot = path.Join(b.Options.VarRoot, "logs", b.publishLoggingSession)
+	b.publishLoggingLoggers = sync.Map{} // reset
+	return os.MkdirAll(b.publishLoggingRoot, 0777)
 }
 
-func (b *Broker) serviceLoggingSetup(event string) (*os.File, error) {
-	name := path.Join(b.serviceLoggingRoot, event)
+func (b *Broker) publishLoggingSetup(event string) (*os.File, error) {
+	name := path.Join(b.publishLoggingRoot, event)
 	logFile, err := os.Create(name)
 	return logFile, err
 }
 
 func (b *Broker) handleLoggingPublish(event string, data string) {
 	var logger *os.File
-	loggerIface, ok := b.serviceLoggingLoggers.Load(event)
+	loggerIface, ok := b.publishLoggingLoggers.Load(event)
 	if ok {
 		logger = loggerIface.(*os.File)
 	} else {
 		var err error
-		logger, err = b.serviceLoggingSetup(event)
+		logger, err = b.publishLoggingSetup(event)
 		if err != nil {
 			b.logger.Errorf("[Publish] Could not create logging file for %s: %s", event, err)
 			return
 		}
-		b.serviceLoggingLoggers.Store(event, logger)
+		b.publishLoggingLoggers.Store(event, logger)
 	}
 	_, err := logger.Write([]byte(data + "\n"))
 	if err != nil {

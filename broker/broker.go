@@ -44,21 +44,23 @@ type Broker struct {
 	services    map[string]map[string]*service
 
 	// Map of requests ids with associated timeout timer
-	reqIdsMtx             sync.RWMutex
-	reqIds                map[uint64]*requestTracking
+	reqIdsMtx sync.RWMutex
+	reqIds    map[uint64]*requestTracking
+
+	// Subscriber management
 	subscriberMapMtx      sync.RWMutex
 	subscriberMap         map[string][]*client
 	subscriberMatchMapMtx sync.RWMutex
 	subscriberMatchMap    map[string][]*client
 
-	// Service logging
-	serviceLoggingSession string
-	serviceLoggingRoot    string
-	serviceLoggingLoggers sync.Map // map[string]*os.File
+	// Publish logging
+	publishLoggingSession string
+	publishLoggingRoot    string
+	publishLoggingLoggers sync.Map // map[string]*os.File
 
-	// The broker is startedCh
+	// The broker is started
 	startedCh chan struct{}
-	// The broker must quitCh
+	// The broker must quit
 	quitCh chan struct{}
 }
 
@@ -258,16 +260,7 @@ func (b *Broker) handleMessage(conn net.Conn, msgBytes []byte, msg *cellaserv.Me
 }
 
 // Handles incoming connections
-func (b *Broker) serve(errCh chan error) {
-	// Create TCP listenener for incoming connections
-	l, err := net.Listen("tcp", b.Options.ListenAddress)
-	if err != nil {
-		b.logger.Errorf("[Broker] Could not listen: %s", err)
-		errCh <- err
-		return
-	}
-	defer l.Close()
-
+func (b *Broker) serve(l net.Listener, errCh chan error) {
 	b.logger.Infof("[Broker] Listening on %s", b.Options.ListenAddress)
 
 	for {
@@ -293,14 +286,24 @@ func (b *Broker) quit() chan struct{} {
 
 func (b *Broker) Run(ctx context.Context) error {
 	if b.Options.PublishLoggingEnabled {
-		err := b.rotateServiceLogs()
+		err := b.rotatePublishLoggers()
 		if err != nil {
 			return err
 		}
 	}
 
 	errCh := make(chan error)
-	go b.serve(errCh)
+
+	// Create TCP listenener for incoming connections
+	l, err := net.Listen("tcp", b.Options.ListenAddress)
+	if err != nil {
+		b.logger.Errorf("[Broker] Could not listen: %s", err)
+		errCh <- err
+	} else {
+		defer l.Close()
+	}
+
+	go b.serve(l, errCh)
 
 	close(b.startedCh)
 

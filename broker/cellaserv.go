@@ -215,7 +215,7 @@ type GetLogsRequest struct {
 type GetLogsResponse map[string]string
 
 func (b *Broker) GetLogsByPattern(pattern string) (GetLogsResponse, error) {
-	pathPattern := path.Join(b.serviceLoggingRoot, pattern)
+	pathPattern := path.Join(b.publishLoggingRoot, pattern)
 
 	if !strings.HasPrefix(pathPattern, path.Join(b.Options.VarRoot, "logs")) {
 		err := fmt.Errorf("Don't try to do directory traversal: %s", pattern)
