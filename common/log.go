@@ -2,13 +2,15 @@ package common
 
 import (
 	"os"
+	"sync"
 
 	logging "github.com/op/go-logging"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
 var appLogLevel = logging.ERROR
-var logBackendInit = false
+var logBackendInit sync.Once
+var loggingMtx sync.Mutex
 
 type loggerSettings struct {
 	level string
@@ -31,18 +33,19 @@ func AddFlags(a *kingpin.Application) {
 }
 
 func NewLogger(module string) *logging.Logger {
-	if !logBackendInit {
-		logBackendInit = true
+	logBackendInit.Do(func() {
 		format := logging.MustStringFormatter("%{level:-7s} %{time:Jan _2 15:04:05.000} %{message}")
 		logging.SetFormatter(format)
 
 		logBackend := logging.NewLogBackend(os.Stderr, "", 0)
 		logBackend.Color = true
 		logging.SetBackend(logBackend)
-	}
+	})
 
 	logger := logging.MustGetLogger(module)
+	loggingMtx.Lock()
 	logging.SetLevel(appLogLevel, module)
+	loggingMtx.Unlock()
 
 	return logger
 }
