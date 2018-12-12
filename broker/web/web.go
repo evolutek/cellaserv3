@@ -7,7 +7,9 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/http/pprof"
 	"path"
+	"strings"
 
 	"bitbucket.org/evolutek/cellaserv3/broker"
 	"bitbucket.org/evolutek/cellaserv3/client"
@@ -159,6 +161,36 @@ func (h *Handler) executeTemplate(w http.ResponseWriter, name string, data inter
 	}
 }
 
+func serveDebug(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+	subpath := route.Param(ctx, "subpath")
+
+	if subpath == "/pprof" {
+		http.Redirect(w, req, req.URL.Path+"/", http.StatusMovedPermanently)
+		return
+	}
+
+	if !strings.HasPrefix(subpath, "/pprof/") {
+		http.NotFound(w, req)
+		return
+	}
+	subpath = strings.TrimPrefix(subpath, "/pprof/")
+
+	switch subpath {
+	case "cmdline":
+		pprof.Cmdline(w, req)
+	case "profile":
+		pprof.Profile(w, req)
+	case "symbol":
+		pprof.Symbol(w, req)
+	case "trace":
+		pprof.Trace(w, req)
+	default:
+		req.URL.Path = "/debug/pprof/" + subpath
+		pprof.Index(w, req)
+	}
+}
+
 // Starts the web component
 func (h *Handler) Run(ctx context.Context) error {
 	h.logger.Infof("[Web] Listening on %s", h.options.ListenAddr)
@@ -206,6 +238,9 @@ func New(o *Options, logger *logging.Logger, broker *broker.Broker) *Handler {
 	router.Post("/api/v1/request/:service/:method", h.request)
 	router.Post("/api/v1/publish/:event", h.publish)
 	router.Get("/api/v1/subscribe/:event", h.subscribe)
+
+	router.Get("/debug/*subpath", serveDebug)
+	router.Post("/debug/*subpath", serveDebug)
 
 	return h
 }
