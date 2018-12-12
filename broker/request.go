@@ -17,12 +17,12 @@ type requestTracking struct {
 }
 
 func (b *Broker) handleRequest(conn net.Conn, msgRaw []byte, req *cellaserv.Request) {
-	b.logger.Infof("[Request] Incoming from %s", conn.RemoteAddr())
-
 	name := req.GetServiceName()
 	method := req.GetMethod()
 	id := req.GetId()
 	ident := req.GetServiceIdentification()
+
+	b.logger.Infof("[Request] id:%x %s → %s[%s].%s", id, conn.RemoteAddr(), name, ident, method)
 
 	if ident != "" {
 		b.logger.Debugf("[Request] id:%d %s[%s].%s", id, name, ident, method)
@@ -55,7 +55,11 @@ func (b *Broker) handleRequest(conn net.Conn, msgRaw []byte, req *cellaserv.Requ
 		_, ok := b.reqIds[id]
 		b.reqIdsMtx.RUnlock()
 		if ok {
-			b.logger.Errorf("[Request] id:%d Timeout of %s", id, srvc)
+			b.reqIdsMtx.Lock()
+			delete(b.reqIds, id)
+			b.reqIdsMtx.Unlock()
+
+			b.logger.Errorf("[Request] id:%x Timeout of %s", id, srvc)
 			b.sendReplyError(conn, req, cellaserv.Reply_Error_Timeout)
 		}
 	}

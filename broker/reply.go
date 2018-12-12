@@ -8,18 +8,19 @@ import (
 
 func (b *Broker) handleReply(conn net.Conn, msgRaw []byte, rep *cellaserv.Reply) {
 	id := rep.Id
-	b.logger.Infof("[Reply] id:%d reply from %s", id, conn.RemoteAddr())
 
 	b.reqIdsMtx.RLock()
 	reqTrack, ok := b.reqIds[id]
 	b.reqIdsMtx.RUnlock()
 	if !ok {
-		b.logger.Errorf("[Reply] Unknown ID: %d", id)
+		b.logger.Errorf("[Reply] Unknown ID: %x", id)
 		return
 	}
 	b.reqIdsMtx.Lock()
 	delete(b.reqIds, id)
 	b.reqIdsMtx.Unlock()
+
+	reqTrack.timer.Stop()
 
 	// Track reply latency
 	reqTrack.latencyObserver.ObserveDuration()
@@ -30,7 +31,6 @@ func (b *Broker) handleReply(conn net.Conn, msgRaw []byte, rep *cellaserv.Reply)
 		b.sendRawMessage(spy.conn, msgRaw)
 	}
 
-	reqTrack.timer.Stop()
-	b.logger.Debugf("[Reply] Forwarding to %s", reqTrack.sender.RemoteAddr())
+	b.logger.Infof("[Reply] id:%x %s → %s", id, conn.RemoteAddr(), reqTrack.sender.RemoteAddr())
 	b.sendRawMessage(reqTrack.sender, msgRaw)
 }
