@@ -156,13 +156,7 @@ func (b *Broker) removeSpiesOnClient(c *client) {
 func (b *Broker) handle(conn net.Conn) {
 	b.logger.Infof("[Broker] Connection opened: %s", b.connDescribe(conn))
 
-	// Register this connection
-	c := &client{conn: conn}
-	b.clientsByConn.Store(conn, c)
-
-	// TODO(halfr): use c.ToJSON()
-	connJSON := connToJSON(conn)
-	b.cellaservPublish(logNewConnection, connJSON)
+	c := b.newClient(conn)
 
 	// Handle all messages received on this connection
 	for {
@@ -174,24 +168,13 @@ func (b *Broker) handle(conn net.Conn) {
 			b.logger.Infof("[Broker] Connection closed: %s", b.connDescribe(conn))
 			break
 		}
-		err = b.handleMessage(conn, msgBytes, msg)
+		err = b.handleMessage(c, msgBytes, msg)
 		if err != nil {
 			b.logger.Errorf("[Message] Handle: %s", err)
 		}
 	}
 
-	// Client exited, cleaning up resources
-	c.mtx.Lock()
-	b.removeServicesOnClient(c)
-	b.removeSubscriptionsOfClient(c)
-	b.removeSpiesOnClient(c)
-	c.mtx.Unlock()
-
-	// Remove from list of handled connection
-	b.clientsByConn.Delete(conn)
-
-	// Publish that the client disconnected
-	b.cellaservPublish(logCloseConnection, connJSON)
+	b.removeClient(c)
 }
 
 func (b *Broker) logUnmarshalError(msg []byte) {
@@ -202,7 +185,7 @@ func (b *Broker) logUnmarshalError(msg []byte) {
 	b.logger.Errorf("[Broker] Bad message (%d bytes): %s", len(msg), dbg)
 }
 
-func (b *Broker) handleMessage(conn net.Conn, msgBytes []byte, msg *cellaserv.Message) error {
+func (b *Broker) handleMessage(c *client, msgBytes []byte, msg *cellaserv.Message) error {
 	var err error
 
 	// Parse and process message payload
@@ -216,7 +199,7 @@ func (b *Broker) handleMessage(conn net.Conn, msgBytes []byte, msg *cellaserv.Me
 			b.logUnmarshalError(msgContent)
 			return fmt.Errorf("Could not unmarshal register: %s", err)
 		}
-		b.handleRegister(conn, register)
+		b.handleRegister(c, register)
 		return nil
 	case cellaserv.Message_Request:
 		request := &cellaserv.Request{}
@@ -225,7 +208,7 @@ func (b *Broker) handleMessage(conn net.Conn, msgBytes []byte, msg *cellaserv.Me
 			b.logUnmarshalError(msgContent)
 			return fmt.Errorf("Could not unmarshal request: %s", err)
 		}
-		b.handleRequest(conn, msgBytes, request)
+		b.handleRequest(c, msgBytes, request)
 		return nil
 	case cellaserv.Message_Reply:
 		reply := &cellaserv.Reply{}
@@ -234,7 +217,7 @@ func (b *Broker) handleMessage(conn net.Conn, msgBytes []byte, msg *cellaserv.Me
 			b.logUnmarshalError(msgContent)
 			return fmt.Errorf("Could not unmarshal reply: %s", err)
 		}
-		b.handleReply(conn, msgBytes, reply)
+		b.handleReply(c, msgBytes, reply)
 		return nil
 	case cellaserv.Message_Subscribe:
 		sub := &cellaserv.Subscribe{}
@@ -243,7 +226,7 @@ func (b *Broker) handleMessage(conn net.Conn, msgBytes []byte, msg *cellaserv.Me
 			b.logUnmarshalError(msgContent)
 			return fmt.Errorf("Could not unmarshal subscribe: %s", err)
 		}
-		b.handleSubscribe(conn, sub)
+		b.handleSubscribe(c, sub)
 		return nil
 	case cellaserv.Message_Publish:
 		pub := &cellaserv.Publish{}
@@ -252,7 +235,7 @@ func (b *Broker) handleMessage(conn net.Conn, msgBytes []byte, msg *cellaserv.Me
 			b.logUnmarshalError(msgContent)
 			return fmt.Errorf("Could not unmarshal publish: %s", err)
 		}
-		b.handlePublish(conn, msgBytes, pub)
+		b.handlePublish(c, msgBytes, pub)
 		return nil
 	default:
 		return fmt.Errorf("Unknown message type: %d", msg.Type)

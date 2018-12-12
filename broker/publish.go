@@ -1,7 +1,6 @@
 package broker
 
 import (
-	"net"
 	"os"
 	"path"
 	"path/filepath"
@@ -12,8 +11,8 @@ import (
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
 )
 
-func (b *Broker) handlePublish(conn net.Conn, msgBytes []byte, pub *cellaserv.Publish) {
-	b.logger.Infof("[Publish] %s publishes %s", b.connDescribe(conn), pub.Event)
+func (b *Broker) handlePublish(c *client, msgBytes []byte, pub *cellaserv.Publish) {
+	b.logger.Infof("[Publish] %s publishes %s", c, pub.Event)
 	b.doPublish(msgBytes, pub)
 }
 

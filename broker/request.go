@@ -1,7 +1,6 @@
 package broker
 
 import (
-	"net"
 	"time"
 
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
@@ -10,42 +9,36 @@ import (
 )
 
 type requestTracking struct {
-	sender          net.Conn
+	sender          *client
 	timer           *time.Timer
 	spies           []*client
 	latencyObserver *prometheus.Timer
 }
 
-func (b *Broker) handleRequest(conn net.Conn, msgRaw []byte, req *cellaserv.Request) {
-	name := req.GetServiceName()
-	method := req.GetMethod()
-	id := req.GetId()
-	ident := req.GetServiceIdentification()
+func (b *Broker) handleRequest(c *client, msgRaw []byte, req *cellaserv.Request) {
+	name := req.ServiceName
+	method := req.Method
+	id := req.Id
+	ident := req.ServiceIdentification
 
-	b.logger.Infof("[Request] id:%x %s → %s[%s].%s", id, conn.RemoteAddr(), name, ident, method)
-
-	if ident != "" {
-		b.logger.Debugf("[Request] id:%d %s[%s].%s", id, name, ident, method)
-	} else {
-		b.logger.Debugf("[Request] id:%d %s.%s", id, name, method)
-	}
+	b.logger.Infof("[Request] id:%x %s → %s[%s].%s", id, c, name, ident, method)
 
 	if name == "cellaserv" {
-		b.cellaservRequest(conn, req)
+		b.cellaservRequest(c.conn, req)
 		return
 	}
 
 	idents, ok := b.services[name]
 	if !ok || len(idents) == 0 {
-		b.logger.Warningf("[Request] id:%d No such service: %s", id, name)
-		b.sendReplyError(conn, req, cellaserv.Reply_Error_NoSuchService)
+		b.logger.Warningf("[Request] id:%x No such service: %s", id, name)
+		b.sendReplyError(c.conn, req, cellaserv.Reply_Error_NoSuchService)
 		return
 	}
 	srvc, ok := idents[ident]
 	if !ok {
-		b.logger.Warningf("[Request] id:%d No such identification for service %s: %s",
+		b.logger.Warningf("[Request] id:%x No such identification for service %s: %s",
 			id, name, ident)
-		b.sendReplyError(conn, req, cellaserv.Reply_Error_InvalidIdentification)
+		b.sendReplyError(c.conn, req, cellaserv.Reply_Error_InvalidIdentification)
 		return
 	}
 
@@ -60,14 +53,14 @@ func (b *Broker) handleRequest(conn net.Conn, msgRaw []byte, req *cellaserv.Requ
 			b.reqIdsMtx.Unlock()
 
 			b.logger.Errorf("[Request] id:%x Timeout of %s", id, srvc)
-			b.sendReplyError(conn, req, cellaserv.Reply_Error_Timeout)
+			b.sendReplyError(c.conn, req, cellaserv.Reply_Error_Timeout)
 		}
 	}
 	timer := time.AfterFunc(b.Options.RequestTimeoutSec*time.Second, handleTimeout)
 
 	// The ID is used to track the sender of the request
 	reqTrack := &requestTracking{
-		sender:          conn,
+		sender:          c,
 		timer:           timer,
 		spies:           srvc.spies,
 		latencyObserver: prometheus.NewTimer(b.Monitoring.requests.WithLabelValues(req.GetServiceName(), req.GetServiceIdentification(), req.GetMethod()))}

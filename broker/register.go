@@ -2,22 +2,16 @@ package broker
 
 import (
 	"encoding/json"
-	"net"
 
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
 )
 
 // Add service to services map
-func (b *Broker) handleRegister(conn net.Conn, msg *cellaserv.Register) {
-	name := msg.GetName()
-	ident := msg.GetIdentification()
-	b.logger.Infof("[Services] New %s/%s", name, ident)
+func (b *Broker) handleRegister(c *client, msg *cellaserv.Register) {
+	name := msg.Name
+	ident := msg.Identification
+	b.logger.Infof("[Services] New %s[%s]", name, ident)
 
-	c, ok := b.getClientByConn(conn)
-	if !ok {
-		b.logger.Warningf("[Register] Connection disconected while handling register: %s", conn)
-		return
-	}
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
@@ -28,7 +22,7 @@ func (b *Broker) handleRegister(conn net.Conn, msg *cellaserv.Register) {
 		b.services[name] = make(map[string]*service)
 	}
 
-	registeredService := newService(conn, name, ident)
+	registeredService := newService(c, name, ident)
 
 	// Check for duplicate services
 	if s, ok := b.services[name][ident]; ok {
@@ -67,7 +61,4 @@ func (b *Broker) handleRegister(conn net.Conn, msg *cellaserv.Register) {
 	// Publish new service events
 	pubJSON, _ := json.Marshal(registeredService.JSONStruct())
 	b.cellaservPublish(logNewService, pubJSON)
-
-	pubJSON, _ = json.Marshal(ConnectionJSON{conn.RemoteAddr().String(), b.connDescribe(conn)})
-	b.cellaservPublish(logConnRename, pubJSON)
 }

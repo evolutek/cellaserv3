@@ -2,7 +2,6 @@ package broker
 
 import (
 	"encoding/json"
-	"net"
 	"strings"
 
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
@@ -13,12 +12,8 @@ type logSubscriberJSON struct {
 	SubAddr string
 }
 
-func (b *Broker) handleSubscribe(conn net.Conn, sub *cellaserv.Subscribe) {
-	b.logger.Infof("[Subscribe] %s subscribes to %s", conn.RemoteAddr(), sub.Event)
-	c, ok := b.getClientByConn(conn)
-	if !ok {
-		return
-	}
+func (b *Broker) handleSubscribe(c *client, sub *cellaserv.Subscribe) {
+	b.logger.Infof("[Subscribe] %s subscribes to %s", c, sub.Event)
 	if strings.Contains(sub.Event, "*") {
 		b.subscriberMatchMapMtx.Lock()
 		b.subscriberMatchMap[sub.Event] = append(b.subscriberMatchMap[sub.Event], c)
@@ -29,6 +24,6 @@ func (b *Broker) handleSubscribe(conn net.Conn, sub *cellaserv.Subscribe) {
 		b.subscriberMapMtx.Unlock()
 	}
 
-	pubJSON, _ := json.Marshal(logSubscriberJSON{sub.Event, conn.RemoteAddr().String()})
+	pubJSON, _ := json.Marshal(logSubscriberJSON{sub.Event, c.String()})
 	b.cellaservPublish(logNewSubscriber, pubJSON)
 }

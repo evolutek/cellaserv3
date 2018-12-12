@@ -1,12 +1,10 @@
 package broker
 
 import (
-	"net"
-
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
 )
 
-func (b *Broker) handleReply(conn net.Conn, msgRaw []byte, rep *cellaserv.Reply) {
+func (b *Broker) handleReply(c *client, msgRaw []byte, rep *cellaserv.Reply) {
 	id := rep.Id
 
 	b.reqIdsMtx.RLock()
@@ -31,6 +29,6 @@ func (b *Broker) handleReply(conn net.Conn, msgRaw []byte, rep *cellaserv.Reply)
 		b.sendRawMessage(spy.conn, msgRaw)
 	}
 
-	b.logger.Infof("[Reply] id:%x %s → %s", id, conn.RemoteAddr(), reqTrack.sender.RemoteAddr())
-	b.sendRawMessage(reqTrack.sender, msgRaw)
+	b.logger.Infof("[Reply] id:%x %s → %s", id, c, reqTrack.sender)
+	b.sendRawMessage(reqTrack.sender.conn, msgRaw)
 }

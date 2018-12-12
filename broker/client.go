@@ -77,3 +77,31 @@ func (b *Broker) sendReplyError(conn net.Conn, req *cellaserv.Request, errType c
 	}
 	common.SendMessage(conn, msg)
 }
+
+func (b *Broker) newClient(conn net.Conn) *client {
+	// Register this connection
+	c := &client{conn: conn}
+	b.clientsByConn.Store(conn, c)
+
+	// TODO(halfr): use c.ToJSON()
+	connJSON := connToJSON(conn)
+	b.cellaservPublish(logNewConnection, connJSON)
+
+	return c
+}
+
+func (b *Broker) removeClient(c *client) {
+	// Client exited, cleaning up resources
+	c.mtx.Lock()
+	b.removeServicesOnClient(c)
+	b.removeSubscriptionsOfClient(c)
+	b.removeSpiesOnClient(c)
+	c.mtx.Unlock()
+
+	// Remove from list of handled connection
+	b.clientsByConn.Delete(c.conn)
+
+	// Publish that the client disconnected
+	connJSON := connToJSON(c.conn)
+	b.cellaservPublish(logCloseConnection, connJSON)
+}
