@@ -53,7 +53,7 @@ func main() {
 
 	a.Command("list-services", "Lists services currently registered. Alias: ls").Alias("ls")
 
-	a.Command("list-connections", "Lists connections currently established. Alias: lc").Alias("lc")
+	a.Command("list-clients", "Lists cellaserv's clients. Alias: lc").Alias("lc")
 
 	common.AddFlags(a)
 
@@ -127,7 +127,7 @@ func main() {
 		// Create service stub
 		stub := client.NewServiceStub(conn, "cellaserv", "")
 		// Make request
-		respBytes, err := stub.Request("list-services", nil)
+		respBytes, err := stub.Request("list_services", nil)
 		kingpin.FatalIfError(err, "Request failed")
 		// Decode response
 		var services []broker.ServiceJSON
@@ -141,19 +141,19 @@ func main() {
 			}
 			fmt.Print("\n")
 		}
-	case "list-connections":
+	case "list-clients":
 		// Create service stub
 		stub := client.NewServiceStub(conn, "cellaserv", "")
 		// Make request
-		respBytes, err := stub.Request("list-connections", nil)
+		respBytes, err := stub.Request("list_clients", nil)
 		kingpin.FatalIfError(err, "Request failed")
 		// Decode response
-		var connections []broker.ConnectionJSON
+		var connections []broker.ClientJSON
 		err = json.Unmarshal(respBytes, &connections)
 		kingpin.FatalIfError(err, "Unmarshal of reply data failed")
 		// Display connections
 		for _, connection := range connections {
-			fmt.Printf("%s %s\n", connection.Addr, connection.Name)
+			fmt.Printf("%s %s\n", connection.Id, connection.Name)
 		}
 	}
 }

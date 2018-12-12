@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"path"
 	"path/filepath"
 	"strings"
@@ -17,7 +16,7 @@ import (
 const (
 	// Logs sent by cellaserv
 	logCloseConnection = "log.cellaserv.close-connection"
-	logConnRename      = "log.cellaserv.connection-rename"
+	logClientName      = "log.cellaserv.client-name"
 	logLostService     = "log.cellaserv.lost-service"
 	logLostSubscriber  = "log.cellaserv.lost-subscriber"
 	logNewConnection   = "log.cellaserv.new-connection"
@@ -25,52 +24,30 @@ const (
 	logNewSubscriber   = "log.cellaserv.new-subscriber"
 )
 
-// Send conn data as this struct
-type ConnectionJSON struct {
-	Addr string
+type NameClientRequest struct {
 	Name string
 }
 
-type SpyRequest struct {
-	Service        string
-	Identification string
-}
-
-// handleDescribeConn attaches a name to the connection that sent the request.
+// handleNameClient attaches a name to the client that sent the request.
 //
-// The name of the connection is normally given when a service registers.
+// The name of the client is normally given when a service registers.
 // Connections that want to be named too can use this command to do so.
-//
-// TODO(halfr): rename to Name
-func (b *Broker) handleDescribeConn(conn net.Conn, req *cellaserv.Request) {
-	// TODO(halfr): make this a DescribeConnRequest struct
-	var data struct {
-		Name string
-	}
-
+func (b *Broker) handleNameClient(c *client, req *cellaserv.Request) {
+	var data NameClientRequest
 	if err := json.Unmarshal(req.Data, &data); err != nil {
-		b.logger.Warningf("[Cellaserv] Could not unmarshal describe-conn: %s, %s", req.Data, err)
-		b.sendReplyError(conn, req, cellaserv.Reply_Error_BadArguments)
+		b.logger.Warningf("[Cellaserv] Could not unmarshal request data: %s, %s", req.Data, err)
+		b.sendReplyError(c.conn, req, cellaserv.Reply_Error_BadArguments)
 		return
 	}
 
-	b.logger.Debugf("[Cellaserv] Describe %s as %s", conn.RemoteAddr(), data.Name)
+	b.logger.Infof("[Cellaserv] Name %s as %s", c, data.Name)
 
-	// Grab internal conn struct
-	c, ok := b.getClientByConn(conn)
-	if !ok {
-		// Connection gone?
-		return
-	}
+	// Sets client's name
 	c.name = data.Name
 
-	pubJSON, _ := json.Marshal(ConnectionJSON{
-		Addr: conn.RemoteAddr().String(),
-		Name: data.Name,
-	})
-	b.cellaservPublish(logConnRename, pubJSON)
+	b.cellaservPublish(logClientName, c.JSONStruct())
 
-	b.sendReply(conn, req, nil) // Empty reply
+	b.sendReply(c.conn, req, nil) // Empty reply
 }
 
 func (b *Broker) GetServicesJSON() []ServiceJSON {
@@ -85,34 +62,34 @@ func (b *Broker) GetServicesJSON() []ServiceJSON {
 	return servicesList
 }
 
-func (b *Broker) handleListServices(conn net.Conn, req *cellaserv.Request) {
+func (b *Broker) handleListServices(c *client, req *cellaserv.Request) {
 	servicesList := b.GetServicesJSON()
 	data, err := json.Marshal(servicesList)
 	if err != nil {
 		b.logger.Errorf("[Cellaserv] Could not marshal the services: %s", err)
 	}
-	b.sendReply(conn, req, data)
+	b.sendReply(c.conn, req, data)
 }
 
-func (b *Broker) GetConnectionsJSON() []ConnectionJSON {
-	var conns []ConnectionJSON
+func (b *Broker) GetClientsJSON() []ClientJSON {
+	var conns []ClientJSON
 	b.clientsByConn.Range(func(key, value interface{}) bool {
 		c := value.(*client)
-		conn := ConnectionJSON{c.conn.RemoteAddr().String(), c.name}
+		conn := c.JSONStruct()
 		conns = append(conns, conn)
 		return true
 	})
 	return conns
 }
 
-// handleListConnections replies with the list of currently connected clients
-func (b *Broker) handleListConnections(conn net.Conn, req *cellaserv.Request) {
-	conns := b.GetConnectionsJSON()
+// handleListClients replies with the list of currently connected clients
+func (b *Broker) handleListClients(c *client, req *cellaserv.Request) {
+	conns := b.GetClientsJSON()
 	data, err := json.Marshal(conns)
 	if err != nil {
-		b.logger.Errorf("[Cellaserv] Could not marshal the connections list: %s", err)
+		b.logger.Errorf("[Cellaserv] Could not marshal the clients list: %s", err)
 	}
-	b.sendReply(conn, req, data)
+	b.sendReply(c.conn, req, data)
 }
 
 type EventsJSON map[string][]string
@@ -142,13 +119,13 @@ func (b *Broker) GetEventsJSON() EventsJSON {
 }
 
 // handleListEvents replies with the list of subscribers
-func (b *Broker) handleListEvents(conn net.Conn, req *cellaserv.Request) {
+func (b *Broker) handleListEvents(c *client, req *cellaserv.Request) {
 	events := b.GetEventsJSON()
 	data, err := json.Marshal(events)
 	if err != nil {
 		b.logger.Errorf("[Cellaserv] Could not marshal the event list: %s", err)
 	}
-	b.sendReply(conn, req, data)
+	b.sendReply(c.conn, req, data)
 }
 
 // handleShutdown quits cellaserv
@@ -157,13 +134,18 @@ func (b *Broker) handleShutdown() {
 	close(b.quitCh)
 }
 
+type SpyRequest struct {
+	Service        string
+	Identification string
+}
+
 // handleSpy registers the connection as a spy of a service
-func (b *Broker) handleSpy(conn net.Conn, req *cellaserv.Request) {
+func (b *Broker) handleSpy(c *client, req *cellaserv.Request) {
 	var data SpyRequest
 	err := json.Unmarshal(req.Data, &data)
 	if err != nil {
 		b.logger.Warningf("[Cellaserv] Could not spy: %s", err)
-		b.sendReplyError(conn, req, cellaserv.Reply_Error_BadArguments)
+		b.sendReplyError(c.conn, req, cellaserv.Reply_Error_BadArguments)
 		return
 	}
 
@@ -173,39 +155,33 @@ func (b *Broker) handleSpy(conn net.Conn, req *cellaserv.Request) {
 	if !ok {
 		b.logger.Warningf("[Cellaserv] Could not spy, no such service: %s %s", data.Service,
 			data.Identification)
-		b.sendReplyError(conn, req, cellaserv.Reply_Error_BadArguments)
+		b.sendReplyError(c.conn, req, cellaserv.Reply_Error_BadArguments)
 		return
 	}
 
-	b.logger.Debugf("[Cellaserv] %s spies on %s/%s", b.connDescribe(conn), data.Service,
+	b.logger.Debugf("[Cellaserv] %s spies on %s[%s]", c, data.Service,
 		data.Identification)
-
-	c, ok := b.getClientByConn(conn)
-	if !ok {
-		b.logger.Warningf("[Cellaserv]: Client disconnected while processing spy: %s", conn)
-		return
-	}
 
 	srvc.spiesMtx.Lock()
 	srvc.spies = append(srvc.spies, c)
 	srvc.spiesMtx.Unlock()
 
 	c.mtx.Lock()
-	c.spies = append(c.spies, srvc)
+	c.spying = append(c.spying, srvc)
 	c.mtx.Unlock()
 
-	b.sendReply(conn, req, nil)
+	b.sendReply(c.conn, req, nil)
 }
 
 // handleVersion return the version of cellaserv
-func (b *Broker) handleVersion(conn net.Conn, req *cellaserv.Request) {
+func (b *Broker) handleVersion(c *client, req *cellaserv.Request) {
 	data, err := json.Marshal(common.Version)
 	if err != nil {
-		b.logger.Warningf("[Cellaserv] Could not marshall version: %s", err)
-		b.sendReplyError(conn, req, cellaserv.Reply_Error_BadArguments)
+		b.logger.Warningf("[Cellaserv] Could not marshal version: %s", err)
+		b.sendReplyError(c.conn, req, cellaserv.Reply_Error_BadArguments)
 		return
 	}
-	b.sendReply(conn, req, data)
+	b.sendReply(c.conn, req, data)
 }
 
 type GetLogsRequest struct {
@@ -248,58 +224,58 @@ func (b *Broker) GetLogsByPattern(pattern string) (GetLogsResponse, error) {
 	return logs, nil
 }
 
-func (b *Broker) handleGetLogs(conn net.Conn, req *cellaserv.Request) {
+func (b *Broker) handleGetLogs(c *client, req *cellaserv.Request) {
 	var data GetLogsRequest
 	err := json.Unmarshal(req.Data, &data)
 	if err != nil {
 		b.logger.Warningf("[Cellaserv] Invalid get_logs() request: %s", err)
-		b.sendReplyError(conn, req, cellaserv.Reply_Error_BadArguments)
+		b.sendReplyError(c.conn, req, cellaserv.Reply_Error_BadArguments)
 		return
 	}
 
 	logs, err := b.GetLogsByPattern(data.Pattern)
 	if err != nil {
 		b.logger.Warningf("[Cellaserv] Could not get logs: %s", err)
-		b.sendReplyError(conn, req, cellaserv.Reply_Error_BadArguments)
+		b.sendReplyError(c.conn, req, cellaserv.Reply_Error_BadArguments)
 		return
 	}
 
 	logs_json, err := json.Marshal(logs)
 	if err != nil {
 		b.logger.Warningf("[Cellaserv] Could not serialize response: %s", err)
-		b.sendReplyError(conn, req, cellaserv.Reply_Error_BadArguments)
+		b.sendReplyError(c.conn, req, cellaserv.Reply_Error_BadArguments)
 		return
 	}
-	b.sendReply(conn, req, logs_json)
+	b.sendReply(c.conn, req, logs_json)
 }
 
 // cellaservRequest dispatches requests for cellaserv.
-func (b *Broker) cellaservRequest(conn net.Conn, req *cellaserv.Request) {
+func (b *Broker) cellaservRequest(c *client, req *cellaserv.Request) {
 	method := strings.Replace(req.Method, "-", "_", -1)
 	switch method {
 	case "describe_conn":
-		b.handleDescribeConn(conn, req)
-	case "list_connections":
-		b.handleListConnections(conn, req)
+		b.handleNameClient(c, req)
+	case "list_clients":
+		b.handleListClients(c, req)
 	case "list_events":
-		b.handleListEvents(conn, req)
+		b.handleListEvents(c, req)
 	case "list_services":
-		b.handleListServices(conn, req)
+		b.handleListServices(c, req)
 	case "get_logs":
-		b.handleGetLogs(conn, req)
+		b.handleGetLogs(c, req)
 	case "shutdown":
 		b.handleShutdown()
 	case "spy":
-		b.handleSpy(conn, req)
+		b.handleSpy(c, req)
 	case "version":
-		b.handleVersion(conn, req)
+		b.handleVersion(c, req)
 	default:
-		b.sendReplyError(conn, req, cellaserv.Reply_Error_NoSuchMethod)
+		b.sendReplyError(c.conn, req, cellaserv.Reply_Error_NoSuchMethod)
 	}
 }
 
-// cellaservPublish sends a publish message from cellaserv
-func (b *Broker) cellaservPublish(event string, data []byte) {
+// cellaservPublishBytes sends a publish message from cellaserv
+func (b *Broker) cellaservPublishBytes(event string, data []byte) {
 	pub := &cellaserv.Publish{Event: event}
 	if data != nil {
 		pub.Data = data
@@ -318,4 +294,13 @@ func (b *Broker) cellaservPublish(event string, data []byte) {
 	}
 
 	b.doPublish(msgBytes, pub)
+}
+
+func (b *Broker) cellaservPublish(event string, obj interface{}) {
+	pubData, err := json.Marshal(obj)
+	if err != nil {
+		b.logger.Errorf("Unable to marshal publish: %s", err)
+		return
+	}
+	b.cellaservPublishBytes(event, pubData)
 }

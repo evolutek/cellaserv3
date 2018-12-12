@@ -24,7 +24,7 @@ func (b *Broker) handleRequest(c *client, msgRaw []byte, req *cellaserv.Request)
 	b.logger.Infof("[Request] id:%x %s → %s[%s].%s", id, c, name, ident, method)
 
 	if name == "cellaserv" {
-		b.cellaservRequest(c.conn, req)
+		b.cellaservRequest(c, req)
 		return
 	}
 

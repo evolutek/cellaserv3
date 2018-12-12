@@ -20,9 +20,6 @@ func (b *Broker) doPublish(msgBytes []byte, pub *cellaserv.Publish) {
 	// Holds subscribers for this publish
 	var subs []*client
 
-	// Logging
-	b.logger.Debugf("[Publish] Publishing %s", pub.Event)
-
 	// Handle log publishes
 	if b.Options.PublishLoggingEnabled && strings.HasPrefix(pub.Event, "log.") {
 		loggingEvent := pub.Event[len("log."):]
@@ -44,7 +41,7 @@ func (b *Broker) doPublish(msgBytes []byte, pub *cellaserv.Publish) {
 	subs = append(subs, b.subscriberMap[pub.Event]...)
 
 	for _, c := range subs {
-		b.logger.Debugf("[Publish] Forwarding %s to %s", pub.GetEvent(), c.name)
+		b.logger.Debugf("[Publish] %s → %s", pub.Event, c)
 		b.sendRawMessage(c.conn, msgBytes)
 	}
 }
@@ -76,6 +73,11 @@ func (b *Broker) handleLoggingPublish(event string, data string) {
 		}
 		b.publishLoggingLoggers.Store(event, logger)
 	}
+
+	if strings.ContainsRune(data, '\n') {
+		b.logger.Warningf("[Publish] Logging for %s contains '\\n': %s", event, data)
+	}
+
 	_, err := logger.Write([]byte(data + "\n"))
 	if err != nil {
 		b.logger.Errorf("[Publish] Could not write to logging file %s: %s", event, err)

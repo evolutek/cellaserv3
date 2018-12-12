@@ -1,15 +1,14 @@
 package broker
 
 import (
-	"encoding/json"
 	"strings"
 
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
 )
 
 type logSubscriberJSON struct {
-	Event   string
-	SubAddr string
+	Event       string
+	SubClientId string
 }
 
 func (b *Broker) handleSubscribe(c *client, sub *cellaserv.Subscribe) {
@@ -24,6 +23,5 @@ func (b *Broker) handleSubscribe(c *client, sub *cellaserv.Subscribe) {
 		b.subscriberMapMtx.Unlock()
 	}
 
-	pubJSON, _ := json.Marshal(logSubscriberJSON{sub.Event, c.String()})
-	b.cellaservPublish(logNewSubscriber, pubJSON)
+	b.cellaservPublish(logNewSubscriber, logSubscriberJSON{sub.Event, c.id})
 }

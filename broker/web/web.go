@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bytes"
 	"context"
 	template "html/template"
 	template_text "html/template"
@@ -118,13 +119,13 @@ func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
 	h.logger.Debug("[Web] Serving overview")
 
 	overview := struct {
-		Connections []broker.ConnectionJSON
-		Services    []broker.ServiceJSON
-		Events      broker.EventsJSON
+		Clients  []broker.ClientJSON
+		Services []broker.ServiceJSON
+		Events   broker.EventsJSON
 	}{
-		Connections: h.broker.GetConnectionsJSON(),
-		Services:    h.broker.GetServicesJSON(),
-		Events:      h.broker.GetEventsJSON(),
+		Clients:  h.broker.GetClientsJSON(),
+		Services: h.broker.GetServicesJSON(),
+		Events:   h.broker.GetEventsJSON(),
 	}
 
 	h.executeTemplate(w, "overview.html", overview)
@@ -155,10 +156,13 @@ func (h *Handler) executeTemplate(w http.ResponseWriter, name string, data inter
 		path.Join(templatesPath, "_base.html"),
 		path.Join(templatesPath, name)))
 
-	err := tmpl.ExecuteTemplate(w, "_base.html", data)
+	var buffer bytes.Buffer
+	err := tmpl.ExecuteTemplate(&buffer, "_base.html", data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
+	w.Write(buffer.Bytes())
 }
 
 func serveDebug(w http.ResponseWriter, req *http.Request) {

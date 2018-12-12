@@ -2,7 +2,6 @@ package broker
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net"
 	"sync"
@@ -64,99 +63,10 @@ type Broker struct {
 	quitCh chan struct{}
 }
 
-func (b *Broker) getClientByConn(conn net.Conn) (*client, bool) {
-	elt, ok := b.clientsByConn.Load(conn)
-	return elt.(*client), ok
-}
-
-// Remove services registered by this connection. The client's mutex must be
-// held by caller.
-func (b *Broker) removeServicesOnClient(c *client) {
-	// TODO: notify goroutines waiting for acks for this service
-	for _, s := range c.services {
-		b.logger.Infof("[Service] Remove %s", s)
-		pubJSON, _ := json.Marshal(s.JSONStruct())
-		b.cellaservPublish(logLostService, pubJSON)
-
-		b.servicesMtx.Lock()
-		delete(b.services[s.Name], s.Identification)
-		b.servicesMtx.Unlock()
-
-		// Close connections that spied this service
-		// TODO(halfr): do not close thoses connections, instead,
-		// spying and services and make sure that if the service
-		// reconnects, the spies are automatically re-added to this
-		// service.
-		s.spiesMtx.RLock()
-		for _, c := range s.spies {
-			b.logger.Debugf("[Service] Close spy conn: %s", c)
-			if err := c.conn.Close(); err != nil {
-				b.logger.Errorf("Could not close connection: %s", err)
-			}
-		}
-		s.spiesMtx.RLock()
-	}
-}
-
-func (b *Broker) removeSubscriptionsOfClient(c *client) {
-	var removedSubscriptions []logSubscriberJSON
-
-	// Remove subscribes from this connection
-	removeConnFromMap := func(subMap map[string][]*client) {
-		for key, subs := range subMap {
-			for i, subClient := range subs {
-				if c == subClient {
-					// Remove from list of subscribers
-					subs[i] = subs[len(subs)-1]
-					subMap[key] = subs[:len(subs)-1]
-
-					if len(subMap[key]) == 0 {
-						delete(subMap, key)
-						break
-					}
-
-					removedSubscriptions = append(removedSubscriptions,
-						logSubscriberJSON{key, c.conn.RemoteAddr().String()})
-				}
-			}
-		}
-	}
-
-	b.subscriberMapMtx.Lock()
-	removeConnFromMap(b.subscriberMap)
-	b.subscriberMapMtx.Unlock()
-	b.subscriberMatchMapMtx.Lock()
-	removeConnFromMap(b.subscriberMatchMap)
-	b.subscriberMatchMapMtx.Unlock()
-
-	for _, removedSub := range removedSubscriptions {
-		pubJSON, _ := json.Marshal(removedSub)
-		b.cellaservPublish(logLostSubscriber, pubJSON)
-	}
-
-}
-
-func (b *Broker) removeSpiesOnClient(c *client) {
-	// Remove conn from the services it spied
-	for _, srvc := range c.spies {
-		srvc.spiesMtx.Lock()
-		for i, spy := range srvc.spies {
-			if spy == c {
-				// Remove from slice
-				srvc.spies[i] = srvc.spies[len(srvc.spies)-1]
-				srvc.spies = srvc.spies[:len(srvc.spies)-1]
-				break
-			}
-		}
-		srvc.spiesMtx.Unlock()
-	}
-}
-
 // Manage incoming connexion
 func (b *Broker) handle(conn net.Conn) {
-	b.logger.Infof("[Broker] Connection opened: %s", b.connDescribe(conn))
-
 	c := b.newClient(conn)
+	b.logger.Infof("[Broker] New client: %s", c)
 
 	// Handle all messages received on this connection
 	for {
@@ -165,12 +75,12 @@ func (b *Broker) handle(conn net.Conn) {
 			b.logger.Errorf("[Message] Receive: %s", err)
 		}
 		if closed {
-			b.logger.Infof("[Broker] Connection closed: %s", b.connDescribe(conn))
+			b.logger.Infof("[Broker] Client disconnected: %s", c)
 			break
 		}
 		err = b.handleMessage(c, msgBytes, msg)
 		if err != nil {
-			b.logger.Errorf("[Message] Handle: %s", err)
+			b.logger.Errorf("[Message] Error handling message: %s", err)
 		}
 	}
 
@@ -305,10 +215,6 @@ func New(options Options, logger *logging.Logger) *Broker {
 	if options.RequestTimeoutSec == 0 {
 		options.RequestTimeoutSec = 5
 	}
-
-	// go func() {
-	// 	log.Println(http.ListenAndServe("localhost:6060", nil))
-	// }()
 
 	m := &Monitoring{
 		Registry: prometheus.NewRegistry(),

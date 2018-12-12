@@ -10,22 +10,22 @@
   <div class="col-md-3">
     <h4 class="d-flex justify-content-between align-items-center">
       <span data-feather="phone"></span>
-      Connections
-      <span class="badge badge-secondary">{{ len .Connections }}</span>
+      Clients
+      <span class="badge badge-secondary">{{ len .Clients }}</span>
     </h4>
 
     <table class="table table-striped table">
       <thead>
 	<tr>
-	  <th>Addr</th>
+	  <th>Id</th>
 	  <th>Name</th>
 	</tr>
       </thead>
       <tbody>
-	{{ range $index, $elt := .Connections }}
+	{{ range $index, $elt := .Clients }}
 	<tr>
-	  <td>{{ $elt.Addr }}</td>
-	  <td>{{ $elt.Name }}</td>
+	  <td>{{ $elt.Id }}</td>
+	  <td>{{ or $elt.Name "Ø" }}</td>
 	</tr>
 	{{ end }}
       </tbody>

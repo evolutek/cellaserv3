@@ -23,6 +23,8 @@ func TestPublishLog(t *testing.T) {
 	}, func(b *Broker) {
 		connA, connB := net.Pipe()
 
+		clientA := b.newClient(connA)
+
 		go func() {
 			pub := &cellaserv.Publish{
 				Event: "log.test",
@@ -37,7 +39,7 @@ func TestPublishLog(t *testing.T) {
 				Method:      "get_logs",
 				Data:        []byte(`{"pattern": "test"}`),
 			}
-			b.handleGetLogs(connA, req)
+			b.handleGetLogs(clientA, req)
 		}()
 
 		repDataBytes := testutil.RecvReply(t, connB)

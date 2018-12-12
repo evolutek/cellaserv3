@@ -29,7 +29,7 @@ func (b *Broker) handleRegister(c *client, msg *cellaserv.Register) {
 		b.logger.Warningf("[Services] Replace %s", s)
 
 		pubJSON, _ := json.Marshal(s.JSONStruct())
-		b.cellaservPublish(logLostService, pubJSON)
+		b.cellaservPublishBytes(logLostService, pubJSON)
 
 		for i, ss := range c.services {
 			if ss.Name == name && ss.Identification == ident {
@@ -60,5 +60,5 @@ func (b *Broker) handleRegister(c *client, msg *cellaserv.Register) {
 
 	// Publish new service events
 	pubJSON, _ := json.Marshal(registeredService.JSONStruct())
-	b.cellaservPublish(logNewService, pubJSON)
+	b.cellaservPublishBytes(logNewService, pubJSON)
 }
