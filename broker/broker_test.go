@@ -32,7 +32,7 @@ func brokerTestWithOptions(t *testing.T, options Options, testFn func(b *Broker)
 		}
 	}()
 
-	<-broker.started
+	<-broker.startedCh
 
 	// Run the test
 	testFn(broker)

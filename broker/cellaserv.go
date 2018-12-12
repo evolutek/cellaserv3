@@ -154,7 +154,7 @@ func (b *Broker) handleListEvents(conn net.Conn, req *cellaserv.Request) {
 // handleShutdown quits cellaserv
 func (b *Broker) handleShutdown() {
 	b.logger.Info("[Cellaserv] Shutting down.")
-	close(b.quit)
+	close(b.quitCh)
 }
 
 // handleSpy registers the connection as a spy of a service

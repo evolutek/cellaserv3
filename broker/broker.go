@@ -56,10 +56,10 @@ type Broker struct {
 	serviceLoggingRoot    string
 	serviceLoggingLoggers sync.Map // map[string]*os.File
 
-	// The broker is started
-	started chan struct{}
-	// The broker must quit
-	quit chan struct{}
+	// The broker is startedCh
+	startedCh chan struct{}
+	// The broker must quitCh
+	quitCh chan struct{}
 }
 
 func (b *Broker) getClientByConn(conn net.Conn) (*client, bool) {
@@ -258,7 +258,18 @@ func (b *Broker) handleMessage(conn net.Conn, msgBytes []byte, msg *cellaserv.Me
 }
 
 // Handles incoming connections
-func (b *Broker) serve(l net.Listener) error {
+func (b *Broker) serve(errCh chan error) {
+	// Create TCP listenener for incoming connections
+	l, err := net.Listen("tcp", b.Options.ListenAddress)
+	if err != nil {
+		b.logger.Errorf("[Broker] Could not listen: %s", err)
+		errCh <- err
+		return
+	}
+	defer l.Close()
+
+	b.logger.Infof("[Broker] Listening on %s", b.Options.ListenAddress)
+
 	for {
 		conn, err := l.Accept()
 		nerr, ok := err.(net.Error)
@@ -268,12 +279,16 @@ func (b *Broker) serve(l net.Listener) error {
 				time.Sleep(10 * time.Millisecond)
 				continue
 			} else {
-				return err
+				errCh <- err
+				break
 			}
 		}
 		go b.handle(conn)
 	}
-	return nil
+}
+
+func (b *Broker) quit() chan struct{} {
+	return b.quitCh
 }
 
 func (b *Broker) Run(ctx context.Context) error {
@@ -284,27 +299,15 @@ func (b *Broker) Run(ctx context.Context) error {
 		}
 	}
 
-	// Create TCP listenener for incoming connections
-	l, err := net.Listen("tcp", b.Options.ListenAddress)
-	if err != nil {
-		b.logger.Errorf("[Broker] Could not listen: %s", err)
-		return err
-	}
-	defer l.Close()
-
-	b.logger.Infof("[Broker] Listening on %s", b.Options.ListenAddress)
-
 	errCh := make(chan error)
-	go func() {
-		errCh <- b.serve(l)
-	}()
+	go b.serve(errCh)
 
-	close(b.started)
+	close(b.startedCh)
 
 	select {
 	case e := <-errCh:
 		return e
-	case <-b.quit:
+	case <-b.quit():
 		return nil
 	case <-ctx.Done():
 		return nil
@@ -341,8 +344,8 @@ func New(options Options, logger *logging.Logger) *Broker {
 		subscriberMap:      make(map[string][]*client),
 		subscriberMatchMap: make(map[string][]*client),
 
-		started: make(chan struct{}),
-		quit:    make(chan struct{}),
+		startedCh: make(chan struct{}),
+		quitCh:    make(chan struct{}),
 	}
 
 	// Setup monitoring
