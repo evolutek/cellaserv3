@@ -14,14 +14,13 @@ import (
 )
 
 const (
-	// Logs sent by cellaserv
-	logCloseConnection = "log.cellaserv.close-connection"
-	logClientName      = "log.cellaserv.client-name"
-	logLostService     = "log.cellaserv.lost-service"
-	logLostSubscriber  = "log.cellaserv.lost-subscriber"
-	logNewConnection   = "log.cellaserv.new-connection"
-	logNewService      = "log.cellaserv.new-service"
-	logNewSubscriber   = "log.cellaserv.new-subscriber"
+	logClientName     = "log.cellaserv.client-name"
+	logLostClient     = "log.cellaserv.lost-client"
+	logLostService    = "log.cellaserv.lost-service"
+	logLostSubscriber = "log.cellaserv.lost-subscriber"
+	logNewClient      = "log.cellaserv.new-client"
+	logNewService     = "log.cellaserv.new-service"
+	logNewSubscriber  = "log.cellaserv.new-subscriber"
 )
 
 type NameClientRequest struct {

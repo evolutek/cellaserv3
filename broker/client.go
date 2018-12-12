@@ -166,7 +166,7 @@ func (b *Broker) newClient(conn net.Conn) *client {
 		id:   conn.RemoteAddr().String(),
 	}
 	b.clientsByConn.Store(conn, c)
-	b.cellaservPublish(logNewConnection, c.JSONStruct())
+	b.cellaservPublish(logNewClient, c.JSONStruct())
 	return c
 }
 
@@ -186,5 +186,5 @@ func (b *Broker) removeClient(c *client) {
 	// Remove from list of handled connection
 	b.clientsByConn.Delete(c.conn)
 
-	b.cellaservPublish(logCloseConnection, c.JSONStruct())
+	b.cellaservPublish(logLostClient, c.JSONStruct())
 }

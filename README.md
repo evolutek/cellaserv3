@@ -104,7 +104,6 @@ TODO: document
 
 ## TODO
 
-* P1 cellaservctl: add logs command
 * P1 client: prometheus monitoring in the go client
 * P1 use errors.Wrapf
 * P1 store everything related to a connection to an internal conn struct, simplifies locking

@@ -48,6 +48,10 @@ func main() {
 	subscribeEventPattern := subscribe.Arg("event", "Event name pattern to subscribe to.").Required().String()
 	subscribeMonitor := subscribe.Flag("monitor", "Instead of exiting after received a single event, wait indefinitely.").Short('m').Bool()
 
+	log := a.Command("log", "Get logs. Alias: l").Alias("l")
+	logPattern := log.Arg("pattern", "Log name pattern. Example: 'cellaserv.new-client'").Required().String()
+	logFolow := log.Flag("follow", "Instead of exiting after received logs, wait for new.").Short('f').Bool()
+
 	spy := a.Command("spy", "Listens to all requests and responses of a service.")
 	spyPath := spy.Arg("path", "Spy path. Example service or service/id").Required().String()
 
@@ -100,11 +104,7 @@ func main() {
 	case "subscribe":
 		err := conn.Subscribe(*subscribeEventPattern,
 			func(eventName string, eventBytes []byte) {
-				// Decode
-				var eventData interface{}
-				json.Unmarshal(eventBytes, &eventData)
-				// Display
-				fmt.Printf("%s: %v\n", eventName, eventData)
+				fmt.Printf("%s: %s\n", eventName, string(eventBytes))
 
 				// Should exit?
 				if !*subscribeMonitor {
@@ -113,6 +113,29 @@ func main() {
 			})
 		kingpin.FatalIfError(err, "Could no subscribe")
 		<-conn.Quit()
+	case "log":
+		// Log with follow is just a special case of "subscribe"
+		if *logFolow {
+			err := conn.Subscribe("log."+*logPattern,
+				func(eventName string, eventBytes []byte) {
+					fmt.Printf("%s: %s\n", eventName, string(eventBytes))
+				})
+			kingpin.FatalIfError(err, "Could no subscribe")
+			<-conn.Quit()
+		} else {
+			// Create service stub
+			stub := client.NewServiceStub(conn, "cellaserv", "")
+			// Make request
+			respBytes, err := stub.Request("get_logs", &broker.GetLogsRequest{*logPattern})
+			kingpin.FatalIfError(err, "Request failed")
+			var getLogsResponse broker.GetLogsResponse
+			err = json.Unmarshal(respBytes, &getLogsResponse)
+			kingpin.FatalIfError(err, "Unmarshal failed")
+			for event, logs := range getLogsResponse {
+				fmt.Println(">>> ", event)
+				fmt.Println(logs)
+			}
+		}
 	case "spy":
 		// Parse args
 		service, identification := common.ParseServicePath(*spyPath)
