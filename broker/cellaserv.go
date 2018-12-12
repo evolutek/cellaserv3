@@ -96,7 +96,7 @@ func (b *Broker) handleListServices(conn net.Conn, req *cellaserv.Request) {
 
 func (b *Broker) GetConnectionsJSON() []ConnectionJSON {
 	var conns []ConnectionJSON
-	b.connMap.Range(func(key, value interface{}) bool {
+	b.clientsByConn.Range(func(key, value interface{}) bool {
 		c := value.(*client)
 		conn := ConnectionJSON{c.conn.RemoteAddr().String(), c.name}
 		conns = append(conns, conn)

@@ -54,8 +54,10 @@ type client struct {
 	// Map of request ids to their replies
 	requestsInFlight map[uint64]chan *cellaserv.Reply
 
-	msgCh   chan *cellaserv.Message
+	msgCh chan *cellaserv.Message
+	// TODO(halfr): this should be renamed "serverClosed"
 	closeCh chan struct{}
+	quit    bool
 	quitCh  chan struct{}
 }
 
@@ -225,6 +227,7 @@ func (c *client) handleMessage(msg *cellaserv.Message) error {
 
 // Close shuts down the client.
 func (c *client) Close() {
+	c.quit = true
 	close(c.quitCh)
 }
 
@@ -366,7 +369,9 @@ func newClient(conn net.Conn, name string) *client {
 					c.logger.Errorf("[Message] Handle: %s", err)
 				}
 			case <-c.closeCh:
-				close(c.quitCh)
+				if !c.quit {
+					close(c.quitCh)
+				}
 				break Loop
 			case <-c.quitCh:
 				break Loop

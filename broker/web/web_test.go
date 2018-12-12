@@ -8,19 +8,19 @@ import (
 	"time"
 
 	"bitbucket.org/evolutek/cellaserv3/broker"
-	logging "github.com/op/go-logging"
+	"bitbucket.org/evolutek/cellaserv3/common"
 	"github.com/prometheus/prometheus/util/testutil"
 )
 
 func TestWeb(t *testing.T) {
 	brokerOptions := broker.Options{ListenAddress: ":4200"}
-	broker := broker.New(brokerOptions, logging.MustGetLogger("broker"))
+	broker := broker.New(brokerOptions, common.NewLogger("broker"))
 
 	opts := &Options{
 		ListenAddr: ":4280",
 		AssetsPath: "ui",
 	}
-	webHandler := New(opts, logging.MustGetLogger("web"), broker)
+	webHandler := New(opts, common.NewLogger("web"), broker)
 
 	go func() {
 		err := webHandler.Run(context.Background())

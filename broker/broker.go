@@ -29,23 +29,6 @@ type Monitoring struct {
 	requests *prometheus.HistogramVec
 }
 
-// client represents a single connnection to cellaserv
-type client struct {
-	mtx  sync.Mutex // protects slices below
-	conn net.Conn   // connection of this client
-	name string     // name of this client
-	// TODO(halfr): rename to "spying"
-	spies    []*service // services spied by this client
-	services []*service // services registered by this clietn
-}
-
-func (c *client) String() string {
-	if c.name != "" {
-		return c.name
-	}
-	return c.conn.RemoteAddr().String()
-}
-
 type Broker struct {
 	Monitoring *Monitoring
 
@@ -54,8 +37,7 @@ type Broker struct {
 	logger *logging.Logger
 
 	// All currently handled connections
-	// TODO(halfr): rename to clientsByConn
-	connMap sync.Map // map[net.Conn]*client
+	clientsByConn sync.Map // map[net.Conn]*client
 
 	// Map of currently connected services by name, then identification
 	servicesMtx sync.RWMutex
@@ -81,7 +63,7 @@ type Broker struct {
 }
 
 func (b *Broker) getClientByConn(conn net.Conn) (*client, bool) {
-	elt, ok := b.connMap.Load(conn)
+	elt, ok := b.clientsByConn.Load(conn)
 	return elt.(*client), ok
 }
 
@@ -174,7 +156,7 @@ func (b *Broker) handle(conn net.Conn) {
 
 	// Register this connection
 	c := &client{conn: conn}
-	b.connMap.Store(conn, c)
+	b.clientsByConn.Store(conn, c)
 
 	// TODO(halfr): use c.ToJSON()
 	connJSON := connToJSON(conn)
@@ -204,7 +186,7 @@ func (b *Broker) handle(conn net.Conn) {
 	c.mtx.Unlock()
 
 	// Remove from list of handled connection
-	b.connMap.Delete(conn)
+	b.clientsByConn.Delete(conn)
 
 	// Publish that the client disconnected
 	b.cellaservPublish(logCloseConnection, connJSON)

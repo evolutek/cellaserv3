@@ -8,6 +8,7 @@ import (
 )
 
 var appLogLevel = logging.ERROR
+var logBackendInit = false
 
 type loggerSettings struct {
 	level string
@@ -30,12 +31,15 @@ func AddFlags(a *kingpin.Application) {
 }
 
 func NewLogger(module string) *logging.Logger {
-	format := logging.MustStringFormatter("%{level:-7s} %{time:Jan _2 15:04:05.000} %{message}")
-	logging.SetFormatter(format)
+	if !logBackendInit {
+		logBackendInit = true
+		format := logging.MustStringFormatter("%{level:-7s} %{time:Jan _2 15:04:05.000} %{message}")
+		logging.SetFormatter(format)
 
-	logBackend := logging.NewLogBackend(os.Stderr, "", 0)
-	logBackend.Color = true
-	logging.SetBackend(logBackend)
+		logBackend := logging.NewLogBackend(os.Stderr, "", 0)
+		logBackend.Color = true
+		logging.SetBackend(logBackend)
+	}
 
 	logger := logging.MustGetLogger(module)
 	logging.SetLevel(appLogLevel, module)

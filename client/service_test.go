@@ -7,7 +7,7 @@ import (
 
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
 	"bitbucket.org/evolutek/cellaserv3/broker"
-	logging "github.com/op/go-logging"
+	"bitbucket.org/evolutek/cellaserv3/common"
 )
 
 func TestServiceRequest(t *testing.T) {
@@ -16,7 +16,7 @@ func TestServiceRequest(t *testing.T) {
 	brokerOptions := broker.Options{
 		ListenAddress: ":4201",
 	}
-	broker := broker.New(brokerOptions, logging.MustGetLogger("test"))
+	broker := broker.New(brokerOptions, common.NewLogger("test"))
 
 	go func() {
 		err := broker.Run(ctxBroker)
