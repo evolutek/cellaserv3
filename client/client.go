@@ -79,7 +79,10 @@ func (c *client) sendRequestWaitForReply(req *cellaserv.Request) *cellaserv.Repl
 	msgType := cellaserv.Message_Request
 	msg := cellaserv.Message{Type: msgType, Content: reqBytes}
 
-	common.SendMessage(c.conn, &msg)
+	err = common.SendMessage(c.conn, &msg)
+	if err != nil {
+		panic(fmt.Sprintf("Could not send message: %s", err))
+	}
 
 	// Wait for reply
 	return <-c.requestsInFlight[req.Id]
@@ -130,6 +133,7 @@ func (c *client) handleRequest(req *cellaserv.Request) error {
 	return nil
 }
 
+// TODO(halfr): handle different kind of errors
 func (c *client) sendRequestReply(req *cellaserv.Request, replyData []byte, replyErr error) {
 	msgType := cellaserv.Message_Reply
 	msgContent := &cellaserv.Reply{Id: req.Id, Data: replyData}
@@ -149,7 +153,10 @@ func (c *client) sendRequestReply(req *cellaserv.Request, replyData []byte, repl
 	msgContentBytes, _ := proto.Marshal(msgContent)
 	msg := &cellaserv.Message{Type: msgType, Content: msgContentBytes}
 
-	common.SendMessage(c.conn, msg)
+	err := common.SendMessage(c.conn, msg)
+	if err != nil {
+		c.logger.Warningf("[Request] Could not send reply: %s", err)
+	}
 }
 
 func (c *client) handleReply(rep *cellaserv.Reply) error {
