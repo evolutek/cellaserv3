@@ -104,7 +104,6 @@ TODO: document
 
 ## TODO
 
-* P0 cellaserv: clean the web directory, only keep the REST interface and minimalistic html interface
 * P1 cellaservctl: add logs command
 * P1 client: prometheus monitoring in the go client
 * P1 use errors.Wrapf
@@ -115,3 +114,4 @@ TODO: document
 * P2 client: add service dependencies
 * P2 common: add back `CS_DEBUG`
 * P2 use structured logging
+* P2 send publish with a channel, avoid blocking while handling other stuff

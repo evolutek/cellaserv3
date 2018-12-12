@@ -233,9 +233,12 @@ func New(o *Options, logger *logging.Logger, broker *broker.Broker) *Handler {
 		http.Redirect(w, r, "/overview", http.StatusFound)
 	})
 	router.Get("/overview", h.overview)
+	router.Get("/logs", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/logs/*", http.StatusFound)
+	})
 	router.Get("/logs/:pattern", h.logs)
-
 	router.Get("/static/*filepath", route.FileServe(path.Join(o.AssetsPath, "static")))
+
 	router.Get("/metrics", promhttp.HandlerFor(prometheus.Gatherers{prometheus.DefaultGatherer, broker.Monitoring.Registry}, promhttp.HandlerOpts{}).ServeHTTP)
 
 	// cellaserv HTTP API
