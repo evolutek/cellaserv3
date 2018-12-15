@@ -23,6 +23,13 @@ func TestWeb(t *testing.T) {
 	webHandler := New(opts, common.NewLogger("web"), broker)
 
 	go func() {
+		err := broker.Run(context.Background())
+		if err != nil {
+			panic(fmt.Sprintf("Could not start broker: %s", err))
+		}
+	}()
+
+	go func() {
 		err := webHandler.Run(context.Background())
 		if err != nil {
 			panic(fmt.Sprintf("Could not start web handler: %s", err))
@@ -36,6 +43,10 @@ func TestWeb(t *testing.T) {
 	testutil.Equals(t, http.StatusOK, resp.StatusCode)
 
 	resp, err = http.Get("http://localhost:4280/overview")
+	testutil.Ok(t, err)
+	testutil.Equals(t, http.StatusOK, resp.StatusCode)
+
+	resp, err = http.Get("http://localhost:4280/metrics")
 	testutil.Ok(t, err)
 	testutil.Equals(t, http.StatusOK, resp.StatusCode)
 }

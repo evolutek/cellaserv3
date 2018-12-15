@@ -31,14 +31,14 @@ func (b *Broker) handleRequest(c *client, msgRaw []byte, req *cellaserv.Request)
 	idents, ok := b.services[name]
 	if !ok || len(idents) == 0 {
 		b.logger.Warningf("[Request] id:%x No such service: %s", id, name)
-		b.sendReplyError(c.conn, req, cellaserv.Reply_Error_NoSuchService)
+		b.sendReplyError(c, req, cellaserv.Reply_Error_NoSuchService)
 		return
 	}
 	srvc, ok := idents[ident]
 	if !ok {
 		b.logger.Warningf("[Request] id:%x No such identification for service %s: %s",
 			id, name, ident)
-		b.sendReplyError(c.conn, req, cellaserv.Reply_Error_InvalidIdentification)
+		b.sendReplyError(c, req, cellaserv.Reply_Error_InvalidIdentification)
 		return
 	}
 
@@ -53,7 +53,7 @@ func (b *Broker) handleRequest(c *client, msgRaw []byte, req *cellaserv.Request)
 			b.reqIdsMtx.Unlock()
 
 			b.logger.Errorf("[Request] id:%x Timeout of %s", id, srvc)
-			b.sendReplyError(c.conn, req, cellaserv.Reply_Error_Timeout)
+			b.sendReplyError(c, req, cellaserv.Reply_Error_Timeout)
 		}
 	}
 	timer := time.AfterFunc(b.Options.RequestTimeoutSec*time.Second, handleTimeout)
@@ -73,7 +73,10 @@ func (b *Broker) handleRequest(c *client, msgRaw []byte, req *cellaserv.Request)
 	// Forward message to the spies of this service
 	srvc.spiesMtx.RLock()
 	for _, spy := range srvc.spies {
-		common.SendRawMessage(spy.conn, msgRaw)
+		err := common.SendRawMessage(spy.conn, msgRaw)
+		if err != nil {
+			b.logger.Warningf("[Request] Could not forward request to spy %s: %s", spy, err)
+		}
 	}
 	srvc.spiesMtx.RUnlock()
 }

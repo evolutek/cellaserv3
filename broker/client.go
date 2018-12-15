@@ -48,7 +48,7 @@ func (b *Broker) sendRawMessage(conn net.Conn, msg []byte) {
 }
 
 // TODO(halfr): take a client instead of a conn
-func (b *Broker) sendReply(conn net.Conn, req *cellaserv.Request, data []byte) {
+func (b *Broker) sendReply(c *client, req *cellaserv.Request, data []byte) {
 	rep := &cellaserv.Reply{Id: req.Id, Data: data}
 	repBytes, err := proto.Marshal(rep)
 	if err != nil {
@@ -58,11 +58,11 @@ func (b *Broker) sendReply(conn net.Conn, req *cellaserv.Request, data []byte) {
 	msgType := cellaserv.Message_Reply
 	msg := &cellaserv.Message{Type: msgType, Content: repBytes}
 
-	common.SendMessage(conn, msg)
+	common.SendMessage(c.conn, msg)
 }
 
 // TODO(halfr): take a client instead of a conn
-func (b *Broker) sendReplyError(conn net.Conn, req *cellaserv.Request, errType cellaserv.Reply_Error_Type) {
+func (b *Broker) sendReplyError(c *client, req *cellaserv.Request, errType cellaserv.Reply_Error_Type) {
 	err := &cellaserv.Reply_Error{Type: errType}
 
 	reply := &cellaserv.Reply{Error: err, Id: req.Id}
@@ -73,7 +73,7 @@ func (b *Broker) sendReplyError(conn net.Conn, req *cellaserv.Request, errType c
 		Type:    msgType,
 		Content: replyBytes,
 	}
-	common.SendMessage(conn, msg)
+	common.SendMessage(c.conn, msg)
 }
 
 // Remove services registered by this connection. The client's mutex must be

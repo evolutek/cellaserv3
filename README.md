@@ -6,7 +6,8 @@
 
 This repository contains:
 
-- `cellaserv`, the RPC broker
+- `cellaserv`, the RPC broker, with it's web interface, REST api and debugging
+  tools.
 - `cellaservctl`, the command line tool to for cellaserv
 - `client` the go client library for cellaserv
 
@@ -26,12 +27,19 @@ go get bitbucket.org/evolutek/cellaserv3/cmd/cellaservctl && cellaservctl
 
 ### Configuration
 
-See `cellaserv --help`.
+See `cellaserv --help` and `cellaservctl --help`.
 
 ## Concepts and features
 
 Cellaserv supports both the request/reply and subscribe/publish communication
 primitives.
+
+### Clients
+
+* A cellaserv client is created for each connection.
+* A client has a unique and stable identifier, and a name.
+* By default, the name of the client is it's id, but the client can change it
+  using the cellaserv internal service.
 
 ### Services
 
@@ -66,7 +74,7 @@ primitives.
 
 ### Subscribes
 
-Any connection can send a subscribe message and receive publish messages whose
+* Any client can send a subscribe message and receive publish messages whose
 event string matches the subscribed pattern. The subscribe pattern syntax is
 https://golang.org/pkg/path/filepath/#Match.
 
@@ -77,16 +85,13 @@ https://golang.org/pkg/path/filepath/#Match.
 By default, the HTTP interface is started on the `:4280` port. It displays the
 current status of cellaserv.
 
-### Connections
+### Cellaserv bult-in service
 
-TODO: document
-
-
-### Introspection with the built-in cellaserv service
+TODO
 
 ### Spying on services
 
-Any connection can ask to be sent a carbon copy of requests and responses
+Any client can ask to be sent a carbon copy of requests and responses
 to/from a service by sending a `spy` request to the `cellaserv` service.
 
 The client library has to support receiving messages that are not addressed to
@@ -105,8 +110,8 @@ TODO: document
 ## TODO
 
 * P1 client: prometheus monitoring in the go client
+* P1 broker: fix var directory handling, store logs in /var/log, not /var/cellaserv
 * P1 use errors.Wrapf
-* P1 store everything related to a connection to an internal conn struct, simplifies locking
 * P1 decouple services and spies
 * P2 fix arch linux package
 * P2 client: add config variables

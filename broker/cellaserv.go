@@ -35,7 +35,7 @@ func (b *Broker) handleNameClient(c *client, req *cellaserv.Request) {
 	var data NameClientRequest
 	if err := json.Unmarshal(req.Data, &data); err != nil {
 		b.logger.Warningf("[Cellaserv] Could not unmarshal request data: %s, %s", req.Data, err)
-		b.sendReplyError(c.conn, req, cellaserv.Reply_Error_BadArguments)
+		b.sendReplyError(c, req, cellaserv.Reply_Error_BadArguments)
 		return
 	}
 
@@ -46,7 +46,7 @@ func (b *Broker) handleNameClient(c *client, req *cellaserv.Request) {
 
 	b.cellaservPublish(logClientName, c.JSONStruct())
 
-	b.sendReply(c.conn, req, nil) // Empty reply
+	b.sendReply(c, req, nil) // Empty reply
 }
 
 func (b *Broker) GetServicesJSON() []ServiceJSON {
@@ -67,7 +67,7 @@ func (b *Broker) handleListServices(c *client, req *cellaserv.Request) {
 	if err != nil {
 		b.logger.Errorf("[Cellaserv] Could not marshal the services: %s", err)
 	}
-	b.sendReply(c.conn, req, data)
+	b.sendReply(c, req, data)
 }
 
 func (b *Broker) GetClientsJSON() []ClientJSON {
@@ -88,7 +88,7 @@ func (b *Broker) handleListClients(c *client, req *cellaserv.Request) {
 	if err != nil {
 		b.logger.Errorf("[Cellaserv] Could not marshal the clients list: %s", err)
 	}
-	b.sendReply(c.conn, req, data)
+	b.sendReply(c, req, data)
 }
 
 type EventsJSON map[string][]string
@@ -124,7 +124,7 @@ func (b *Broker) handleListEvents(c *client, req *cellaserv.Request) {
 	if err != nil {
 		b.logger.Errorf("[Cellaserv] Could not marshal the event list: %s", err)
 	}
-	b.sendReply(c.conn, req, data)
+	b.sendReply(c, req, data)
 }
 
 // handleShutdown quits cellaserv
@@ -144,7 +144,7 @@ func (b *Broker) handleSpy(c *client, req *cellaserv.Request) {
 	err := json.Unmarshal(req.Data, &data)
 	if err != nil {
 		b.logger.Warningf("[Cellaserv] Could not spy: %s", err)
-		b.sendReplyError(c.conn, req, cellaserv.Reply_Error_BadArguments)
+		b.sendReplyError(c, req, cellaserv.Reply_Error_BadArguments)
 		return
 	}
 
@@ -154,7 +154,7 @@ func (b *Broker) handleSpy(c *client, req *cellaserv.Request) {
 	if !ok {
 		b.logger.Warningf("[Cellaserv] Could not spy, no such service: %s %s", data.Service,
 			data.Identification)
-		b.sendReplyError(c.conn, req, cellaserv.Reply_Error_BadArguments)
+		b.sendReplyError(c, req, cellaserv.Reply_Error_BadArguments)
 		return
 	}
 
@@ -169,7 +169,7 @@ func (b *Broker) handleSpy(c *client, req *cellaserv.Request) {
 	c.spying = append(c.spying, srvc)
 	c.mtx.Unlock()
 
-	b.sendReply(c.conn, req, nil)
+	b.sendReply(c, req, nil)
 }
 
 // handleVersion return the version of cellaserv
@@ -177,10 +177,10 @@ func (b *Broker) handleVersion(c *client, req *cellaserv.Request) {
 	data, err := json.Marshal(common.Version)
 	if err != nil {
 		b.logger.Warningf("[Cellaserv] Could not marshal version: %s", err)
-		b.sendReplyError(c.conn, req, cellaserv.Reply_Error_BadArguments)
+		b.sendReplyError(c, req, cellaserv.Reply_Error_BadArguments)
 		return
 	}
-	b.sendReply(c.conn, req, data)
+	b.sendReply(c, req, data)
 }
 
 type GetLogsRequest struct {
@@ -228,24 +228,24 @@ func (b *Broker) handleGetLogs(c *client, req *cellaserv.Request) {
 	err := json.Unmarshal(req.Data, &data)
 	if err != nil {
 		b.logger.Warningf("[Cellaserv] Invalid get_logs() request: %s", err)
-		b.sendReplyError(c.conn, req, cellaserv.Reply_Error_BadArguments)
+		b.sendReplyError(c, req, cellaserv.Reply_Error_BadArguments)
 		return
 	}
 
 	logs, err := b.GetLogsByPattern(data.Pattern)
 	if err != nil {
 		b.logger.Warningf("[Cellaserv] Could not get logs: %s", err)
-		b.sendReplyError(c.conn, req, cellaserv.Reply_Error_BadArguments)
+		b.sendReplyError(c, req, cellaserv.Reply_Error_BadArguments)
 		return
 	}
 
 	logs_json, err := json.Marshal(logs)
 	if err != nil {
 		b.logger.Warningf("[Cellaserv] Could not serialize response: %s", err)
-		b.sendReplyError(c.conn, req, cellaserv.Reply_Error_BadArguments)
+		b.sendReplyError(c, req, cellaserv.Reply_Error_BadArguments)
 		return
 	}
-	b.sendReply(c.conn, req, logs_json)
+	b.sendReply(c, req, logs_json)
 }
 
 // cellaservRequest dispatches requests for cellaserv.
@@ -269,7 +269,7 @@ func (b *Broker) cellaservRequest(c *client, req *cellaserv.Request) {
 	case "version":
 		b.handleVersion(c, req)
 	default:
-		b.sendReplyError(c.conn, req, cellaserv.Reply_Error_NoSuchMethod)
+		b.sendReplyError(c, req, cellaserv.Reply_Error_NoSuchMethod)
 	}
 }
 
