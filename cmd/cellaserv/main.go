@@ -48,12 +48,14 @@ func main() {
 	a.Flag("listen-addr", "listening address of the server").
 		Default(":4200").
 		StringVar(&brokerOptions.ListenAddress)
-	a.Flag("storage-root", "base path for persistent storage").
-		Default("/var/cellaserv").
-		StringVar(&brokerOptions.VarRoot)
+
+	// Publish logging
 	a.Flag("store-logs", "whether to store logs, enables using cellaserv.get_logs()").
 		Default("true").
 		BoolVar(&brokerOptions.PublishLoggingEnabled)
+	a.Flag("logs-dir", "base path for client logs storage").
+		Default("/var/log/cellaserv").
+		StringVar(&brokerOptions.LogsDir)
 
 	// Web options
 	a.Flag("http-listen-addr", "listening address of the internal HTTP server").

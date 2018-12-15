@@ -48,7 +48,7 @@ func (b *Broker) doPublish(msgBytes []byte, pub *cellaserv.Publish) {
 
 func (b *Broker) rotatePublishLoggers() error {
 	b.publishLoggingSession = time.Now().Format(time.RFC3339)
-	b.publishLoggingRoot = path.Join(b.Options.VarRoot, "logs", b.publishLoggingSession)
+	b.publishLoggingRoot = path.Join(b.Options.LogsDir, b.publishLoggingSession)
 	b.publishLoggingLoggers = sync.Map{} // reset
 	return os.MkdirAll(b.publishLoggingRoot, 0777)
 }

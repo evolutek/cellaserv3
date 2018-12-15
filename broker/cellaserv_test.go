@@ -18,7 +18,7 @@ func TestPublishLog(t *testing.T) {
 	defer syscall.Unlink(tmpDir)
 
 	brokerTestWithOptions(t, Options{
-		VarRoot:               tmpDir,
+		LogsDir:               tmpDir,
 		PublishLoggingEnabled: true,
 	}, func(b *Broker) {
 		connA, connB := net.Pipe()

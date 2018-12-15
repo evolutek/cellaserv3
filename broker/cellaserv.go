@@ -192,7 +192,7 @@ type GetLogsResponse map[string]string
 func (b *Broker) GetLogsByPattern(pattern string) (GetLogsResponse, error) {
 	pathPattern := path.Join(b.publishLoggingRoot, pattern)
 
-	if !strings.HasPrefix(pathPattern, path.Join(b.Options.VarRoot, "logs")) {
+	if !strings.HasPrefix(pathPattern, b.Options.LogsDir) {
 		err := fmt.Errorf("Don't try to do directory traversal: %s", pattern)
 		return nil, err
 	}

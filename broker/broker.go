@@ -19,7 +19,7 @@ import (
 type Options struct {
 	ListenAddress         string
 	RequestTimeoutSec     time.Duration
-	VarRoot               string
+	LogsDir               string
 	PublishLoggingEnabled bool
 }
 
