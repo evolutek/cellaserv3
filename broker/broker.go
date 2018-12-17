@@ -35,8 +35,8 @@ type Broker struct {
 
 	logger *logging.Logger
 
-	// All currently handled connections
-	clientsByConn sync.Map // map[net.Conn]*client
+	// Currently handled clients
+	mapClientIdToClient sync.Map // map[string]*client
 
 	// Map of currently connected services by name, then identification
 	servicesMtx sync.RWMutex
@@ -61,6 +61,16 @@ type Broker struct {
 	startedCh chan struct{}
 	// The broker must quit
 	quitCh chan struct{}
+}
+
+// Started returns the started broker channel
+func (b *Broker) Started() chan struct{} {
+	return b.startedCh
+}
+
+// Quit returns the quit broker channel
+func (b *Broker) Quit() chan struct{} {
+	return b.quitCh
 }
 
 // Manage incoming connexion
@@ -173,10 +183,6 @@ func (b *Broker) serve(l net.Listener, errCh chan error) {
 	}
 }
 
-func (b *Broker) quit() chan struct{} {
-	return b.quitCh
-}
-
 func (b *Broker) Run(ctx context.Context) error {
 	if b.Options.PublishLoggingEnabled {
 		err := b.rotatePublishLoggers()
@@ -203,7 +209,7 @@ func (b *Broker) Run(ctx context.Context) error {
 	select {
 	case e := <-errCh:
 		return e
-	case <-b.quit():
+	case <-b.quitCh:
 		return nil
 	case <-ctx.Done():
 		return nil

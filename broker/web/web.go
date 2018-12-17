@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"bitbucket.org/evolutek/cellaserv3/broker"
+	"bitbucket.org/evolutek/cellaserv3/broker/cellaserv/api"
 	"bitbucket.org/evolutek/cellaserv3/client"
 	"bitbucket.org/evolutek/cellaserv3/common"
 
@@ -119,9 +120,9 @@ func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
 	h.logger.Debug("[Web] Serving overview")
 
 	overview := struct {
-		Clients  []broker.ClientJSON
-		Services []broker.ServiceJSON
-		Events   broker.EventsJSON
+		Clients  []api.ClientJSON
+		Services []api.ServiceJSON
+		Events   api.EventsJSON
 	}{
 		Clients:  h.broker.GetClientsJSON(),
 		Services: h.broker.GetServicesJSON(),

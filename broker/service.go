@@ -1,8 +1,10 @@
 package broker
 
 import (
+	"fmt"
 	"sync"
 
+	"bitbucket.org/evolutek/cellaserv3/broker/cellaserv/api"
 	"bitbucket.org/evolutek/cellaserv3/common"
 	logging "github.com/op/go-logging"
 )
@@ -16,22 +18,13 @@ type service struct {
 	logger         *logging.Logger
 }
 
-type ServiceJSON struct {
-	Addr           string
-	Name           string
-	Identification string
-}
-
 func (s *service) String() string {
-	if s.Identification != "" {
-		return s.Name + "/" + s.Identification
-	}
-	return s.Name
+	return fmt.Sprintf("%s[%s]", s.Name, s.Identification)
 }
 
 // JSONStruct creates a struc good for JSON encoding.
-func (s *service) JSONStruct() *ServiceJSON {
-	return &ServiceJSON{
+func (s *service) JSONStruct() *api.ServiceJSON {
+	return &api.ServiceJSON{
 		Addr:           s.client.conn.RemoteAddr().String(),
 		Name:           s.Name,
 		Identification: s.Identification,
@@ -44,6 +37,30 @@ func (s *service) sendMessage(msg []byte) {
 	if err != nil {
 		s.logger.Errorf("Could not send message: %s", err)
 	}
+}
+
+// spyByRequest finds the sender of the request and add it to the
+func (b *Broker) SpyService(c *client, srvc *service) {
+	b.logger.Debugf("[Cellaserv] %s spies on %s[%s]", c, srvc)
+
+	srvc.spiesMtx.Lock()
+	srvc.spies = append(srvc.spies, c)
+	srvc.spiesMtx.Unlock()
+
+	c.mtx.Lock()
+	c.spying = append(c.spying, srvc)
+	c.mtx.Unlock()
+}
+
+func (b *Broker) GetService(name string, identification string) (srvc *service, err error) {
+	var ok bool
+	b.servicesMtx.RLock()
+	srvc, ok = b.services[name][identification]
+	b.servicesMtx.RUnlock()
+	if !ok {
+		err = fmt.Errorf("Not such service: %s[%s]", name, identification)
+	}
+	return
 }
 
 func newService(c *client, name string, ident string) *service {

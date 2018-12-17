@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"fmt"
 	"time"
 
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
@@ -22,11 +23,6 @@ func (b *Broker) handleRequest(c *client, msgRaw []byte, req *cellaserv.Request)
 	ident := req.ServiceIdentification
 
 	b.logger.Infof("[Request] id:%x %s → %s[%s].%s", id, c, name, ident, method)
-
-	if name == "cellaserv" {
-		b.cellaservRequest(c, req)
-		return
-	}
 
 	idents, ok := b.services[name]
 	if !ok || len(idents) == 0 {
@@ -79,4 +75,16 @@ func (b *Broker) handleRequest(c *client, msgRaw []byte, req *cellaserv.Request)
 		}
 	}
 	srvc.spiesMtx.RUnlock()
+}
+
+func (b *Broker) GetRequestSender(req *cellaserv.Request) (*client, error) {
+	b.reqIdsMtx.RLock()
+	defer b.reqIdsMtx.RUnlock()
+
+	// Use request ID to find the sender client
+	tracker, ok := b.reqIds[req.Id]
+	if !ok {
+		return nil, fmt.Errorf("Could not find request %x", req.Id)
+	}
+	return tracker.sender, nil
 }

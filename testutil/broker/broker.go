@@ -22,8 +22,7 @@ func WithTestBroker(t *testing.T, listenAddress string, testFn func(client.Clien
 		}
 	}()
 
-	// Give time to the broker to start
-	time.Sleep(50 * time.Millisecond)
+	<-broker.Started()
 
 	// Run the test
 	testFn(client.ClientOpts{CellaservAddr: listenAddress})

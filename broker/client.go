@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
+	"bitbucket.org/evolutek/cellaserv3/broker/cellaserv/api"
 	"bitbucket.org/evolutek/cellaserv3/common"
 	"github.com/golang/protobuf/proto"
 )
@@ -27,16 +28,27 @@ func (c *client) String() string {
 	return c.conn.RemoteAddr().String()
 }
 
-type ClientJSON struct {
-	Id   string
-	Name string
-}
-
-func (c *client) JSONStruct() ClientJSON {
-	return ClientJSON{
+func (c *client) JSONStruct() api.ClientJSON {
+	return api.ClientJSON{
 		Id:   c.id,
 		Name: c.name,
 	}
+}
+
+func (b *Broker) setClientName(c *client, name string) {
+	c.name = name
+
+	// Notify listeners
+	b.cellaservPublish(logClientName, c.JSONStruct())
+}
+
+// GetClient returns the client struct associated with the client id.
+func (b *Broker) GetClient(clientId string) (*client, bool) {
+	value, ok := b.mapClientIdToClient.Load(clientId)
+	if !ok {
+		return nil, false
+	}
+	return value.(*client), true
 }
 
 // Send utils
@@ -47,7 +59,7 @@ func (b *Broker) sendRawMessage(conn net.Conn, msg []byte) {
 	}
 }
 
-// TODO(halfr): take a client instead of a conn
+// TODO(halfr): move from Broker to client
 func (b *Broker) sendReply(c *client, req *cellaserv.Request, data []byte) {
 	rep := &cellaserv.Reply{Id: req.Id, Data: data}
 	repBytes, err := proto.Marshal(rep)
@@ -61,7 +73,7 @@ func (b *Broker) sendReply(c *client, req *cellaserv.Request, data []byte) {
 	common.SendMessage(c.conn, msg)
 }
 
-// TODO(halfr): take a client instead of a conn
+// TODO(halfr): move from Broker to client
 func (b *Broker) sendReplyError(c *client, req *cellaserv.Request, errType cellaserv.Reply_Error_Type) {
 	err := &cellaserv.Reply_Error{Type: errType}
 
@@ -165,14 +177,19 @@ func (b *Broker) newClient(conn net.Conn) *client {
 		conn: conn,
 		id:   conn.RemoteAddr().String(),
 	}
-	b.clientsByConn.Store(conn, c)
+	b.mapClientIdToClient.Store(c.id, c)
 	b.cellaservPublish(logNewClient, c.JSONStruct())
 	return c
 }
 
-func (b *Broker) getClientByConn(conn net.Conn) (*client, bool) {
-	elt, ok := b.clientsByConn.Load(conn)
-	return elt.(*client), ok
+func (b *Broker) RenameClientFromRequest(req *cellaserv.Request, name string) {
+	client, err := b.GetRequestSender(req)
+	if err != nil {
+		b.logger.Warningf("[client] Could not rename client: %s", err)
+		return
+	}
+	// Set client name
+	b.setClientName(client, name)
 }
 
 func (b *Broker) removeClient(c *client) {
@@ -184,7 +201,7 @@ func (b *Broker) removeClient(c *client) {
 	c.mtx.Unlock()
 
 	// Remove from list of handled connection
-	b.clientsByConn.Delete(c.conn)
+	b.mapClientIdToClient.Delete(c.id)
 
 	b.cellaservPublish(logLostClient, c.JSONStruct())
 }

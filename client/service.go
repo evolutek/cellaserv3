@@ -20,10 +20,7 @@ type service struct {
 }
 
 func (s *service) String() string {
-	if s.Identification != "" {
-		return s.Name + "/" + s.Identification
-	}
-	return s.Name
+	return fmt.Sprintf("%s[%s]", s.Name, s.Identification)
 }
 
 // NewService returns an initialized Service instance

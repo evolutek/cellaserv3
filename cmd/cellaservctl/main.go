@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
-	"bitbucket.org/evolutek/cellaserv3/broker"
+	"bitbucket.org/evolutek/cellaserv3/broker/cellaserv/api"
 	"bitbucket.org/evolutek/cellaserv3/client"
 	"bitbucket.org/evolutek/cellaserv3/common"
 	"github.com/pkg/errors"
@@ -126,9 +126,9 @@ func main() {
 			// Create service stub
 			stub := client.NewServiceStub(conn, "cellaserv", "")
 			// Make request
-			respBytes, err := stub.Request("get_logs", &broker.GetLogsRequest{*logPattern})
+			respBytes, err := stub.Request("get_logs", &api.GetLogsRequest{*logPattern})
 			kingpin.FatalIfError(err, "Request failed")
-			var getLogsResponse broker.GetLogsResponse
+			var getLogsResponse api.GetLogsResponse
 			err = json.Unmarshal(respBytes, &getLogsResponse)
 			kingpin.FatalIfError(err, "Unmarshal failed")
 			for event, logs := range getLogsResponse {
@@ -153,7 +153,7 @@ func main() {
 		respBytes, err := stub.Request("list_services", nil)
 		kingpin.FatalIfError(err, "Request failed")
 		// Decode response
-		var services []broker.ServiceJSON
+		var services []api.ServiceJSON
 		err = json.Unmarshal(respBytes, &services)
 		kingpin.FatalIfError(err, "Unmarshal of reply data failed")
 		// Display services
@@ -171,7 +171,7 @@ func main() {
 		respBytes, err := stub.Request("list_clients", nil)
 		kingpin.FatalIfError(err, "Request failed")
 		// Decode response
-		var connections []broker.ClientJSON
+		var connections []api.ClientJSON
 		err = json.Unmarshal(respBytes, &connections)
 		kingpin.FatalIfError(err, "Unmarshal of reply data failed")
 		// Display connections

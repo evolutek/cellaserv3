@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"math/rand"
 	"net"
 	"os"
@@ -11,7 +12,7 @@ import (
 	"time"
 
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
-	"bitbucket.org/evolutek/cellaserv3/broker"
+	cs_api "bitbucket.org/evolutek/cellaserv3/broker/cellaserv/api"
 	"bitbucket.org/evolutek/cellaserv3/common"
 	"github.com/golang/protobuf/proto"
 	logging "github.com/op/go-logging"
@@ -53,12 +54,29 @@ type client struct {
 	currentRequestId uint64
 	// Map of request ids to their replies
 	requestsInFlight map[uint64]chan *cellaserv.Reply
+	// Broker identifier for this client
+	clientId string
 
 	msgCh chan *cellaserv.Message
-	// TODO(halfr): this should be renamed "serverClosed"
+	// TODO(halfr): this should be renamed "remoteClosed"
 	closeCh chan struct{}
 	quit    bool
 	quitCh  chan struct{}
+}
+
+// clientId returns the broker identifier for this client
+func (c *client) ClientId() string {
+	if c.clientId != "" {
+		return c.clientId
+	}
+	cs := NewServiceStub(c, "cellaserv", "")
+	respBytes, err := cs.Request("whoami", nil)
+	if err != nil {
+		log.Printf("cellaserv.whoami() query failed: %s", err)
+		return ""
+	}
+	json.Unmarshal(respBytes, &c.clientId)
+	return c.clientId
 }
 
 func (c *client) sendRequestWaitForReply(req *cellaserv.Request) *cellaserv.Reply {
@@ -92,7 +110,7 @@ func (c *client) handleRequest(req *cellaserv.Request) error {
 	name := req.GetServiceName()
 	ident := req.GetServiceIdentification()
 	method := req.GetMethod()
-	c.logger.Debug("[Request] %s/%s.%s", name, ident, method)
+	c.logger.Debugf("[Request] %s[%s].%s", name, ident, method)
 
 	// Dispatch request to spies
 	hasSpied := false
@@ -190,7 +208,6 @@ func (c *client) handlePublish(pub *cellaserv.Publish) {
 	c.logger.Infof("[Publish] Received: %s", eventName)
 	for _, h := range c.subscribers {
 		if matched, _ := filepath.Match(h.eventPattern, eventName); matched {
-			c.logger.Debugf("[Publish] Handling %s", eventName)
 			h.handle(eventName, pub.GetData())
 		}
 	}
@@ -261,7 +278,7 @@ func (c *client) RegisterService(s *service) {
 	msg := &cellaserv.Message{Type: msgType, Content: msgContentBytes}
 	common.SendMessage(c.conn, msg)
 
-	c.logger.Infof("Service %s registered", s)
+	c.logger.Infof("[Service] Service %s registered", s)
 }
 
 func (c *client) Publish(event string, data interface{}) {
@@ -326,9 +343,10 @@ func (c *client) Spy(serviceName string, serviceIdentification string, handler s
 	// Create service stub
 	cs := NewServiceStub(c, "cellaserv", "")
 	// Make request
-	spyArgs := &broker.SpyRequest{
-		Service:        serviceName,
-		Identification: serviceIdentification,
+	spyArgs := &cs_api.SpyRequest{
+		ServiceName:           serviceName,
+		ServiceIdentification: serviceIdentification,
+		ClientId:              c.ClientId(),
 	}
 	cs.Request("spy", spyArgs)
 
@@ -394,6 +412,8 @@ type ClientOpts struct {
 	CellaservAddr string
 	// Name sent to cellaserv to describe the client
 	ClientName string
+	// Address where the internal web service will listen, empty to disable web server
+	WebListenAddress string
 }
 
 // NewConnection returns a Client instance connected to cellaserv or panics
@@ -418,12 +438,7 @@ func NewClient(opts ClientOpts) *client {
 		panic(fmt.Errorf("Could not connect to cellaserv: %s", err))
 	}
 
-	name := opts.ClientName
-	if name == "" {
-		name = "client"
-	}
-
-	return newClient(conn, name)
+	return newClient(conn, opts.ClientName)
 }
 
 func init() {

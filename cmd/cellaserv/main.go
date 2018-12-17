@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"bitbucket.org/evolutek/cellaserv3/broker"
+	"bitbucket.org/evolutek/cellaserv3/broker/cellaserv"
 	"bitbucket.org/evolutek/cellaserv3/broker/web"
 	"bitbucket.org/evolutek/cellaserv3/common"
 
@@ -83,6 +84,10 @@ func main() {
 	// Broker component
 	broker := broker.New(brokerOptions, common.NewLogger("broker"))
 
+	// Cellaserv service
+	csOpts := &cellaserv.Options{BrokerAddr: brokerOptions.ListenAddress}
+	cs := cellaserv.New(csOpts, broker, common.NewLogger("cellaserv"))
+
 	// Web component
 	webHander := web.New(&webOptions, common.NewLogger("web"), broker)
 
@@ -93,10 +98,21 @@ func main() {
 	// Setup goroutines
 	var g run.Group
 	{
-		//  Broker
+		// Broker
 		g.Add(func() error {
 			if err := broker.Run(ctxBroker); err != nil {
-				return fmt.Errorf("[Broker:] Could not start: %s", err)
+				return fmt.Errorf("[Broker] Could not start: %s", err)
+			}
+			return nil
+		}, func(error) {
+			cancelBroker()
+		})
+	}
+	{
+		// Cellaserv service
+		g.Add(func() error {
+			if err := cs.Run(ctxBroker); err != nil {
+				return fmt.Errorf("[Cellaserv] Could not start: %s", err)
 			}
 			return nil
 		}, func(error) {
@@ -107,7 +123,7 @@ func main() {
 		// Web handler
 		g.Add(func() error {
 			if err := webHander.Run(ctxWeb); err != nil {
-				return fmt.Errorf("error starting the broker: %s", err)
+				return fmt.Errorf("[Web] Could not start web interface: %s", err)
 			}
 
 			return nil

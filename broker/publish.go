@@ -1,14 +1,22 @@
 package broker
 
 import (
-	"os"
-	"path"
+	"encoding/json"
 	"path/filepath"
 	"strings"
-	"sync"
-	"time"
 
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
+	"github.com/golang/protobuf/proto"
+)
+
+const (
+	logClientName     = "log.cellaserv.client-name"
+	logLostClient     = "log.cellaserv.lost-client"
+	logLostService    = "log.cellaserv.lost-service"
+	logLostSubscriber = "log.cellaserv.lost-subscriber"
+	logNewClient      = "log.cellaserv.new-client"
+	logNewService     = "log.cellaserv.new-service"
+	logNewSubscriber  = "log.cellaserv.new-subscriber"
 )
 
 func (b *Broker) handlePublish(c *client, msgBytes []byte, pub *cellaserv.Publish) {
@@ -22,7 +30,7 @@ func (b *Broker) doPublish(msgBytes []byte, pub *cellaserv.Publish) {
 
 	// Handle log publishes
 	if b.Options.PublishLoggingEnabled && strings.HasPrefix(pub.Event, "log.") {
-		loggingEvent := pub.Event[len("log."):]
+		loggingEvent := strings.TrimPrefix(pub.Event, "log.")
 		data := string(pub.Data) // expect data to be utf8
 		b.handleLoggingPublish(loggingEvent, data)
 	}
@@ -46,40 +54,33 @@ func (b *Broker) doPublish(msgBytes []byte, pub *cellaserv.Publish) {
 	}
 }
 
-func (b *Broker) rotatePublishLoggers() error {
-	b.publishLoggingSession = time.Now().Format(time.RFC3339)
-	b.publishLoggingRoot = path.Join(b.Options.LogsDir, b.publishLoggingSession)
-	b.publishLoggingLoggers = sync.Map{} // reset
-	return os.MkdirAll(b.publishLoggingRoot, 0777)
-}
-
-func (b *Broker) publishLoggingSetup(event string) (*os.File, error) {
-	name := path.Join(b.publishLoggingRoot, event)
-	logFile, err := os.Create(name)
-	return logFile, err
-}
-
-func (b *Broker) handleLoggingPublish(event string, data string) {
-	var logger *os.File
-	loggerIface, ok := b.publishLoggingLoggers.Load(event)
-	if ok {
-		logger = loggerIface.(*os.File)
-	} else {
-		var err error
-		logger, err = b.publishLoggingSetup(event)
-		if err != nil {
-			b.logger.Errorf("[Publish] Could not create logging file for %s: %s", event, err)
-			return
-		}
-		b.publishLoggingLoggers.Store(event, logger)
+// cellaservPublishBytes sends a publish message from cellaserv
+func (b *Broker) cellaservPublishBytes(event string, data []byte) {
+	pub := &cellaserv.Publish{Event: event}
+	if data != nil {
+		pub.Data = data
 	}
-
-	if strings.ContainsRune(data, '\n') {
-		b.logger.Warningf("[Publish] Logging for %s contains '\\n': %s", event, data)
-	}
-
-	_, err := logger.Write([]byte(data + "\n"))
+	pubBytes, err := proto.Marshal(pub)
 	if err != nil {
-		b.logger.Errorf("[Publish] Could not write to logging file %s: %s", event, err)
+		b.logger.Errorf("[Cellaserv] Could not marshal event: %s", err)
+		return
 	}
+	msgType := cellaserv.Message_Publish
+	msg := &cellaserv.Message{Type: msgType, Content: pubBytes}
+	msgBytes, err := proto.Marshal(msg)
+	if err != nil {
+		b.logger.Errorf("[Cellaserv] Could not marshal event: %s", err)
+		return
+	}
+
+	b.doPublish(msgBytes, pub)
+}
+
+func (b *Broker) cellaservPublish(event string, obj interface{}) {
+	pubData, err := json.Marshal(obj)
+	if err != nil {
+		b.logger.Errorf("Unable to marshal publish: %s", err)
+		return
+	}
+	b.cellaservPublishBytes(event, pubData)
 }
