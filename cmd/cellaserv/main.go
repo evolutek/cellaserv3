@@ -93,6 +93,7 @@ func main() {
 
 	// Contexts
 	ctxBroker, cancelBroker := context.WithCancel(context.Background())
+	ctxCellaserv, cancelCellaserv := context.WithCancel(context.Background())
 	ctxWeb, cancelWeb := context.WithCancel(context.Background())
 
 	// Setup goroutines
@@ -111,12 +112,12 @@ func main() {
 	{
 		// Cellaserv service
 		g.Add(func() error {
-			if err := cs.Run(ctxBroker); err != nil {
+			if err := cs.Run(ctxCellaserv); err != nil {
 				return fmt.Errorf("[Cellaserv] Could not start: %s", err)
 			}
 			return nil
 		}, func(error) {
-			cancelBroker()
+			cancelCellaserv()
 		})
 	}
 	{
@@ -125,9 +126,9 @@ func main() {
 			if err := webHander.Run(ctxWeb); err != nil {
 				return fmt.Errorf("[Web] Could not start web interface: %s", err)
 			}
-
 			return nil
 		}, func(error) {
+			// TODO(halfr): send error to web clients before exiting
 			cancelWeb()
 		})
 	}

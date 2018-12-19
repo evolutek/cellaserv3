@@ -123,7 +123,12 @@ func (cs *Cellaserv) getLogs(req *cellaserv.Request) (interface{}, error) {
 
 func (cs *Cellaserv) Run(ctx context.Context) error {
 	// Wait for broker to be ready
-	<-cs.broker.Started()
+	select {
+	case <-cs.broker.Started():
+		break
+	case <-ctx.Done():
+		return nil
+	}
 
 	// Create the cellaserv service
 	c := client.NewClient(client.ClientOpts{CellaservAddr: cs.options.BrokerAddr})
@@ -141,9 +146,12 @@ func (cs *Cellaserv) Run(ctx context.Context) error {
 	c.RegisterService(service)
 	close(cs.registeredCh)
 
-	// TODO(halfr): handle ctx.Close()
-	<-c.Quit()
-	return nil
+	select {
+	case <-c.Quit():
+		return nil
+	case <-ctx.Done():
+		return nil
+	}
 }
 
 func New(options *Options, broker *broker.Broker, logger *logging.Logger) *Cellaserv {

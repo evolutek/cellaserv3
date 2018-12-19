@@ -187,7 +187,7 @@ func (b *Broker) Run(ctx context.Context) error {
 	if b.Options.PublishLoggingEnabled {
 		err := b.rotatePublishLoggers()
 		if err != nil {
-			return err
+			return fmt.Errorf("Could not setup publish loggers: %s", err)
 		}
 	}
 
