@@ -9,11 +9,11 @@ func (b *Broker) GetEventsJSON() api.EventsJSON {
 
 	fillMap := func(subMap map[string][]*client) {
 		for event, clients := range subMap {
-			var connSlice []string
+			var clientsSlice []string
 			for _, c := range clients {
-				connSlice = append(connSlice, c.conn.RemoteAddr().String())
+				clientsSlice = append(clientsSlice, c.id)
 			}
-			events[event] = connSlice
+			events[event] = clientsSlice
 		}
 	}
 

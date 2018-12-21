@@ -1,14 +1,14 @@
 package api
 
 type ClientJSON struct {
-	Id   string
-	Name string
+	Id   string `json:"id"`
+	Name string `json:"name"`
 }
 
 type ServiceJSON struct {
-	Addr           string
-	Name           string
-	Identification string
+	Client         string `json:"client"`
+	Name           string `json:"name"`
+	Identification string `json:"identification"`
 }
 
 // Cellaserv service

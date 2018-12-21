@@ -25,7 +25,7 @@ func (s *service) String() string {
 // JSONStruct creates a struc good for JSON encoding.
 func (s *service) JSONStruct() *api.ServiceJSON {
 	return &api.ServiceJSON{
-		Addr:           s.client.conn.RemoteAddr().String(),
+		Client:         s.client.id,
 		Name:           s.Name,
 		Identification: s.Identification,
 	}
