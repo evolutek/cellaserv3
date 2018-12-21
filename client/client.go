@@ -110,7 +110,7 @@ func (c *Client) handleRequest(req *cellaserv.Request) error {
 	name := req.GetServiceName()
 	ident := req.GetServiceIdentification()
 	method := req.GetMethod()
-	c.logger.Debugf("[Request] %s[%s].%s", name, ident, method)
+	c.logger.Debugf("[Client] Received %s[%s].%s", name, ident, method)
 
 	// Dispatch request to spies
 	hasSpied := false
@@ -118,7 +118,7 @@ func (c *Client) handleRequest(req *cellaserv.Request) error {
 	if ok {
 		spies, ok := identsSpied[ident]
 		if ok {
-			c.logger.Infof("[Spy] Received spied request: %s/%s.%s", name, ident, method)
+			c.logger.Infof("[Spy] Received spied request: %s[%s].%s", name, ident, method)
 			hasSpied = true
 			// Spy handler is called when the reply to this request is received
 			c.spyRequestsPending[req.GetId()] = &spyPendingRequest{
@@ -278,7 +278,7 @@ func (c *Client) RegisterService(s *service) {
 	msg := &cellaserv.Message{Type: msgType, Content: msgContentBytes}
 	common.SendMessage(c.conn, msg)
 
-	c.logger.Infof("[Service] Service %s registered", s)
+	c.logger.Infof("[Client] Service %s registered", s)
 }
 
 func (c *Client) Publish(event string, data interface{}) {

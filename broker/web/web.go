@@ -204,7 +204,7 @@ func (h *Handler) Run(ctx context.Context) error {
 	// Create cellaserv client that connects locally
 	h.client = client.NewClient(client.ClientOpts{CellaservAddr: h.options.BrokerAddr})
 
-	h.logger.Infof("[Web] Listening on %s", h.options.ListenAddr)
+	h.logger.Infof("[Web] Listening on http://%s", h.options.ListenAddr)
 	handler := cors.Default().Handler(h.router)
 	httpSrv := &http.Server{
 		Addr:    h.options.ListenAddr,

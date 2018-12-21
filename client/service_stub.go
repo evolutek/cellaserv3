@@ -15,14 +15,11 @@ type serviceStub struct {
 }
 
 func (s *serviceStub) String() string {
-	if s.identification == "" {
-		return s.name
-	}
 	return fmt.Sprintf("%s[%s]", s.name, s.identification)
 }
 
 func (s *serviceStub) Request(method string, data interface{}) ([]byte, error) {
-	s.client.logger.Debugf("[Request] %s.%s(%#v)", s, method, data)
+	s.client.logger.Debugf("[ServiceStub] Request %s.%s(%#v)", s, method, data)
 
 	// Serialize request payload
 	dataBytes, err := json.Marshal(data)

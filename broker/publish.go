@@ -56,6 +56,8 @@ func (b *Broker) doPublish(msgBytes []byte, pub *cellaserv.Publish) {
 
 // cellaservPublishBytes sends a publish message from cellaserv
 func (b *Broker) cellaservPublishBytes(event string, data []byte) {
+	b.logger.Debugf("[Broker] Publishing %s", event)
+
 	pub := &cellaserv.Publish{Event: event}
 	if data != nil {
 		pub.Data = data
