@@ -199,14 +199,17 @@ func serveDebug(w http.ResponseWriter, req *http.Request) {
 func (h *Handler) Run(ctx context.Context) error {
 	// Wait for broker to be ready
 	select {
-	case <-h.broker.Started():
+	case <-h.broker.StartedWithCellaserv():
 		break
 	case <-ctx.Done():
 		return nil
 	}
 
 	// Create cellaserv client that connects locally
-	h.client = client.NewClient(client.ClientOpts{CellaservAddr: h.options.BrokerAddr})
+	h.client = client.NewClient(client.ClientOpts{
+		CellaservAddr: h.options.BrokerAddr,
+		Name:          "web",
+	})
 
 	h.logger.Infof("[Web] Listening on http://%s", h.options.ListenAddr)
 	handler := cors.Default().Handler(h.router)

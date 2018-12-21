@@ -59,6 +59,8 @@ type Broker struct {
 
 	// The broker is started
 	startedCh chan struct{}
+	// The broker has cellaserv service registered
+	startedWithCellaserv chan struct{}
 	// The broker must quit
 	quitCh chan struct{}
 }
@@ -66,6 +68,10 @@ type Broker struct {
 // Started returns the started broker channel
 func (b *Broker) Started() chan struct{} {
 	return b.startedCh
+}
+
+func (b *Broker) StartedWithCellaserv() chan struct{} {
+	return b.startedWithCellaserv
 }
 
 // Quit returns the quit broker channel
@@ -243,8 +249,9 @@ func New(options Options, logger *logging.Logger) *Broker {
 		subscriberMap:      make(map[string][]*client),
 		subscriberMatchMap: make(map[string][]*client),
 
-		startedCh: make(chan struct{}),
-		quitCh:    make(chan struct{}),
+		startedCh:            make(chan struct{}),
+		startedWithCellaserv: make(chan struct{}),
+		quitCh:               make(chan struct{}),
 	}
 
 	// Setup monitoring

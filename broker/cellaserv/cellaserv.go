@@ -28,6 +28,10 @@ type Cellaserv struct {
 	registeredCh chan struct{}
 }
 
+func (cs *Cellaserv) Registered() chan struct{} {
+	return cs.registeredCh
+}
+
 // whoami sends back the client info of the sender
 func (cs *Cellaserv) whoami(req *cellaserv.Request) (interface{}, error) {
 	client, err := cs.broker.GetRequestSender(req)
@@ -145,6 +149,9 @@ func (cs *Cellaserv) Run(ctx context.Context) error {
 	// Run the service
 	c.RegisterService(service)
 	close(cs.registeredCh)
+
+	// Manually name the client, because it requires the cellaserv service.
+	c.Cs.Request("name_client", api.NameClientRequest{"cellaserv"})
 
 	select {
 	case <-c.Quit():

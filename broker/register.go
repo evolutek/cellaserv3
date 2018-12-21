@@ -58,7 +58,11 @@ func (b *Broker) handleRegister(c *client, msg *cellaserv.Register) {
 	// Keep track of origin client in order to remove it when the connection is closed
 	c.services = append(c.services, registeredService)
 
-	// Publish new service events
+	if name == "cellaserv" {
+		close(b.startedWithCellaserv)
+	}
+
+	// Publish new service event
 	pubJSON, _ := json.Marshal(registeredService.JSONStruct())
 	b.cellaservPublishBytes(logNewService, pubJSON)
 }

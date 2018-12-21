@@ -32,7 +32,8 @@ func TestRegisterService(t *testing.T) {
 	}()
 
 	// Connect to cellaserv
-	conn := newClient(client, "test")
+	conn := newClient(client, "") // no name
+	// TODO(halfr): test with a name
 
 	// Prepare service for registration
 	date := conn.NewService("date", "")

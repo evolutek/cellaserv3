@@ -12,6 +12,7 @@ import (
 	"time"
 
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
+	"bitbucket.org/evolutek/cellaserv3/broker/cellaserv/api"
 	cs_api "bitbucket.org/evolutek/cellaserv3/broker/cellaserv/api"
 	"bitbucket.org/evolutek/cellaserv3/common"
 	"github.com/golang/protobuf/proto"
@@ -32,12 +33,17 @@ type subscriber struct {
 
 type spyHandler func(req *cellaserv.Request, rep *cellaserv.Reply)
 
+// When the client is spying on a service, this struct represents a request
+// without a response.
 type spyPendingRequest struct {
 	req   *cellaserv.Request
 	spies []spyHandler
 }
 
 type Client struct {
+	// The cellaserv service stub
+	Cs *serviceStub
+
 	logger *logging.Logger
 
 	// Connection to cellaserv
@@ -57,6 +63,7 @@ type Client struct {
 	// Broker identifier for this client
 	clientId string
 
+	// Incoming messages
 	msgCh chan *cellaserv.Message
 	// TODO(halfr): this should be renamed "remoteClosed"
 	closeCh chan struct{}
@@ -66,11 +73,13 @@ type Client struct {
 
 // clientId returns the broker identifier for this client
 func (c *Client) ClientId() string {
+	// Cached?
 	if c.clientId != "" {
 		return c.clientId
 	}
-	cs := NewServiceStub(c, "cellaserv", "")
-	respBytes, err := cs.Request("whoami", nil)
+
+	// Fetch, store and return
+	respBytes, err := c.Cs.Request("whoami", nil)
 	if err != nil {
 		log.Printf("cellaserv.whoami() query failed: %s", err)
 		return ""
@@ -306,6 +315,11 @@ func (c *Client) Publish(event string, data interface{}) {
 	common.SendMessage(c.conn, msg)
 }
 
+// Log sends a log message to cellaserv
+func (c *Client) Log(what string, data interface{}) {
+	c.Publish("log."+what, data)
+}
+
 func (c *Client) Subscribe(eventPattern string, handler subscriberHandler) error {
 	// Create and add to subscriber map
 	s := &subscriber{
@@ -366,6 +380,8 @@ func newClient(conn net.Conn, name string) *Client {
 		closeCh:            make(chan struct{}),
 		quitCh:             make(chan struct{}),
 	}
+	// Initialize the cellaserv stub
+	c.Cs = NewServiceStub(c, "cellaserv", "")
 
 	// Receive incoming messages
 	go func() {
@@ -382,6 +398,11 @@ func newClient(conn net.Conn, name string) *Client {
 			c.msgCh <- msg
 		}
 	}()
+
+	// Setup name, if given
+	if name != "" {
+		go c.Cs.Request("name_client", api.NameClientRequest{Name: name})
+	}
 
 	// Handle message or quit
 	go func() {
@@ -411,7 +432,7 @@ type ClientOpts struct {
 	// Address of the cellaserv server
 	CellaservAddr string
 	// Name sent to cellaserv to describe the client
-	ClientName string
+	Name string
 	// Address where the internal web service will listen, empty to disable web server
 	WebListenAddress string
 }
@@ -438,7 +459,7 @@ func NewClient(opts ClientOpts) *Client {
 		panic(fmt.Errorf("Could not connect to cellaserv: %s", err))
 	}
 
-	return newClient(conn, opts.ClientName)
+	return newClient(conn, opts.Name)
 }
 
 func init() {

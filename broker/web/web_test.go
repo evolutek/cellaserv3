@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"bitbucket.org/evolutek/cellaserv3/broker"
+	"bitbucket.org/evolutek/cellaserv3/broker/cellaserv"
 	"bitbucket.org/evolutek/cellaserv3/common"
 	"github.com/prometheus/prometheus/util/testutil"
 )
@@ -16,11 +17,8 @@ func TestWeb(t *testing.T) {
 	brokerOptions := broker.Options{ListenAddress: ":4200"}
 	broker := broker.New(brokerOptions, common.NewLogger("broker"))
 
-	opts := &Options{
-		ListenAddr: ":4280",
-		AssetsPath: "ui",
-	}
-	webHandler := New(opts, common.NewLogger("web"), broker)
+	csOpts := &cellaserv.Options{BrokerAddr: ":4200"}
+	cs := cellaserv.New(csOpts, broker, common.NewLogger("cellaserv"))
 
 	go func() {
 		err := broker.Run(context.Background())
@@ -28,6 +26,18 @@ func TestWeb(t *testing.T) {
 			panic(fmt.Sprintf("Could not start broker: %s", err))
 		}
 	}()
+
+	go func() {
+		if err := cs.Run(context.Background()); err != nil {
+			panic(fmt.Errorf("[Cellaserv] Could not start: %s", err))
+		}
+	}()
+
+	opts := &Options{
+		ListenAddr: ":4280",
+		AssetsPath: "ui",
+	}
+	webHandler := New(opts, common.NewLogger("web"), broker)
 
 	go func() {
 		err := webHandler.Run(context.Background())
