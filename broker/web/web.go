@@ -22,6 +22,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/route"
+	"github.com/rs/cors"
 )
 
 type Options struct {
@@ -62,7 +63,7 @@ func (h *Handler) request(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Write request
+	// Write response
 	_, err = w.Write(resp)
 	if err != nil {
 		h.logger.Errorf("Could not write response: %s", err)
@@ -200,9 +201,11 @@ func serveDebug(w http.ResponseWriter, req *http.Request) {
 func (h *Handler) Run(ctx context.Context) error {
 	h.logger.Infof("[Web] Listening on %s", h.options.ListenAddr)
 
+	handler := cors.Default().Handler(h.router)
+
 	httpSrv := &http.Server{
 		Addr:    h.options.ListenAddr,
-		Handler: h.router,
+		Handler: handler,
 	}
 
 	errChan := make(chan error)
@@ -243,6 +246,7 @@ func New(o *Options, logger *logging.Logger, broker *broker.Broker) *Handler {
 	router.Get("/metrics", promhttp.HandlerFor(prometheus.Gatherers{prometheus.DefaultGatherer, broker.Monitoring.Registry}, promhttp.HandlerOpts{}).ServeHTTP)
 
 	// cellaserv HTTP API
+	router.Get("/api/v1/request/:service/:method", h.request)
 	router.Post("/api/v1/request/:service/:method", h.request)
 	router.Post("/api/v1/publish/:event", h.publish)
 	router.Get("/api/v1/subscribe/:event", h.subscribe)
