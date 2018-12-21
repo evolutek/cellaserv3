@@ -7,8 +7,8 @@ import (
 )
 
 type logSubscriberJSON struct {
-	Event       string
-	SubClientId string
+	Event  string `json:"event"`
+	Client string `json:"client"`
 }
 
 func (b *Broker) handleSubscribe(c *client, sub *cellaserv.Subscribe) {
