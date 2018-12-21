@@ -13,12 +13,13 @@ import (
 
 // client represents a single connnection to cellaserv
 type client struct {
-	mtx      sync.Mutex // protects slices below
-	conn     net.Conn   // connection of this client
-	id       string     // unique id for this client
-	name     string     // name of this client
-	spying   []*service // services spied by this client
-	services []*service // services registered by this clietn
+	mtx        sync.Mutex // protects slices below
+	conn       net.Conn   // connection of this client
+	id         string     // unique id for this client
+	name       string     // name of this client
+	spying     []*service // services spied by this client
+	services   []*service // services registered by this clietn
+	subscribes []string   // events subscribed by the client
 }
 
 func (c *client) String() string {

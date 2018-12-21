@@ -13,6 +13,23 @@ type logSubscriberJSON struct {
 
 func (b *Broker) handleSubscribe(c *client, sub *cellaserv.Subscribe) {
 	b.logger.Infof("[Subscribe] %s subscribes to %s", c, sub.Event)
+
+	// Check for duplicate subscribes by the client
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+	present := false
+	for _, pattern := range c.subscribes {
+		if pattern == sub.Event {
+			present = true
+			break
+		}
+	}
+	if present {
+		b.logger.Infof("[Subscribe] %s is already subscribed to %s", c, sub.Event)
+		return
+	}
+	c.subscribes = append(c.subscribes, sub.Event)
+
 	if strings.Contains(sub.Event, "*") {
 		b.subscriberMatchMapMtx.Lock()
 		b.subscriberMatchMap[sub.Event] = append(b.subscriberMatchMap[sub.Event], c)
