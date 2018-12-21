@@ -80,7 +80,11 @@ func (h *Handler) publish(w http.ResponseWriter, r *http.Request) {
 	h.client.Publish(event, body)
 }
 
-var upgrader = websocket.Upgrader{} // use default options
+var upgrader = websocket.Upgrader{
+	// Allow all origins, this is ok because cellaserv is not exported
+	// publicly
+	CheckOrigin: func(r *http.Request) bool { return true },
+}
 
 // subscribe handles websocket subscribe
 func (h *Handler) subscribe(w http.ResponseWriter, r *http.Request) {
@@ -97,7 +101,7 @@ func (h *Handler) subscribe(w http.ResponseWriter, r *http.Request) {
 
 	err = h.client.Subscribe(event,
 		func(eventName string, eventBytes []byte) {
-			err = c.WriteMessage(websocket.BinaryMessage, eventBytes)
+			err = c.WriteMessage(websocket.TextMessage, eventBytes)
 			if err != nil {
 				h.logger.Error("write:", err)
 				return
