@@ -125,6 +125,9 @@ func (b *Broker) removeSubscriptionsOfClient(c *client) {
 		for key, subs := range subMap {
 			for i, subClient := range subs {
 				if c == subClient {
+					removedSubscriptions = append(removedSubscriptions,
+						logSubscriberJSON{key, c.id})
+
 					// Remove from list of subscribers
 					subs[i] = subs[len(subs)-1]
 					subMap[key] = subs[:len(subs)-1]
@@ -133,9 +136,6 @@ func (b *Broker) removeSubscriptionsOfClient(c *client) {
 						delete(subMap, key)
 						break
 					}
-
-					removedSubscriptions = append(removedSubscriptions,
-						logSubscriberJSON{key, c.conn.RemoteAddr().String()})
 				}
 			}
 		}
