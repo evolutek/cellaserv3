@@ -29,5 +29,9 @@ type GetLogsRequest struct {
 
 type GetLogsResponse map[string]string
 
-// TODO(halfr): make that a *Response
-type EventsJSON map[string][]string
+type EventInfoJSON struct {
+	Event       string   `json:"event"`
+	Subscribers []string `json:"subscribers"`
+}
+
+type ListEventsResponse []EventInfoJSON

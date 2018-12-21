@@ -39,6 +39,7 @@ type Handler struct {
 	logger  *logging.Logger
 	router  *route.Router
 	broker  *broker.Broker
+	client  *client.Client
 }
 
 func (h *Handler) request(w http.ResponseWriter, r *http.Request) {
@@ -52,11 +53,8 @@ func (h *Handler) request(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create cellaserv client that connects locally
-	c := client.NewClient(client.ClientOpts{CellaservAddr: h.options.BrokerAddr})
-
 	// Make request
-	serviceStub := client.NewServiceStub(c, service, identification)
+	serviceStub := client.NewServiceStub(h.client, service, identification)
 	resp, err := serviceStub.Request(method, body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -79,9 +77,7 @@ func (h *Handler) publish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create cellaserv client that connects locally
-	c := client.NewClient(client.ClientOpts{CellaservAddr: h.options.BrokerAddr})
-	c.Publish(event, body)
+	h.client.Publish(event, body)
 }
 
 var upgrader = websocket.Upgrader{} // use default options
@@ -99,21 +95,19 @@ func (h *Handler) subscribe(w http.ResponseWriter, r *http.Request) {
 	}
 	defer c.Close()
 
-	// Create cellaserv client that connects locally
-	conn := client.NewClient(client.ClientOpts{CellaservAddr: h.options.BrokerAddr})
-	err = conn.Subscribe(event,
+	err = h.client.Subscribe(event,
 		func(eventName string, eventBytes []byte) {
 			err = c.WriteMessage(websocket.BinaryMessage, eventBytes)
 			if err != nil {
 				h.logger.Error("write:", err)
-				conn.Close()
+				return
 			}
 		})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	<-conn.Quit()
+	<-h.client.Quit()
 }
 
 // overview returns a page showing the list of connections, events and services
@@ -123,7 +117,7 @@ func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
 	overview := struct {
 		Clients  []api.ClientJSON
 		Services []api.ServiceJSON
-		Events   api.EventsJSON
+		Events   []api.EventInfoJSON
 	}{
 		Clients:  h.broker.GetClientsJSON(),
 		Services: h.broker.GetServicesJSON(),
@@ -199,10 +193,19 @@ func serveDebug(w http.ResponseWriter, req *http.Request) {
 
 // Starts the web component
 func (h *Handler) Run(ctx context.Context) error {
+	// Wait for broker to be ready
+	select {
+	case <-h.broker.Started():
+		break
+	case <-ctx.Done():
+		return nil
+	}
+
+	// Create cellaserv client that connects locally
+	h.client = client.NewClient(client.ClientOpts{CellaservAddr: h.options.BrokerAddr})
+
 	h.logger.Infof("[Web] Listening on %s", h.options.ListenAddr)
-
 	handler := cors.Default().Handler(h.router)
-
 	httpSrv := &http.Server{
 		Addr:    h.options.ListenAddr,
 		Handler: handler,
@@ -216,6 +219,8 @@ func (h *Handler) Run(ctx context.Context) error {
 	select {
 	case err := <-errChan:
 		return err
+	case <-h.client.Quit():
+		return nil
 	case <-ctx.Done():
 		return httpSrv.Close()
 	}

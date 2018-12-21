@@ -4,8 +4,8 @@ import (
 	"bitbucket.org/evolutek/cellaserv3/broker/cellaserv/api"
 )
 
-func (b *Broker) GetEventsJSON() api.EventsJSON {
-	events := make(api.EventsJSON)
+func (b *Broker) GetEventsJSON() []api.EventInfoJSON {
+	events := make(map[string][]string)
 
 	fillMap := func(subMap map[string][]*client) {
 		for event, clients := range subMap {
@@ -25,7 +25,13 @@ func (b *Broker) GetEventsJSON() api.EventsJSON {
 	fillMap(b.subscriberMatchMap)
 	b.subscriberMatchMapMtx.RUnlock()
 
-	return events
+	// Compute repsonse
+	ret := make([]api.EventInfoJSON, 0)
+	for event, clients := range events {
+		ret = append(ret, api.EventInfoJSON{Event: event, Subscribers: clients})
+	}
+
+	return ret
 }
 
 func (b *Broker) GetClientsJSON() []api.ClientJSON {
