@@ -113,6 +113,7 @@ TODO: document
 * P1 broker: fix var directory handling, store logs in /var/log, not /var/cellaserv
 * P1 use errors.Wrapf
 * P1 decouple services and spies
+* P2 broker: add unsubscribe verb, used for client in the web interface
 * P2 fix arch linux package
 * P2 client: add config variables
 * P2 client: add service dependencies
