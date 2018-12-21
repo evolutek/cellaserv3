@@ -37,7 +37,7 @@ type spyPendingRequest struct {
 	spies []spyHandler
 }
 
-type client struct {
+type Client struct {
 	logger *logging.Logger
 
 	// Connection to cellaserv
@@ -65,7 +65,7 @@ type client struct {
 }
 
 // clientId returns the broker identifier for this client
-func (c *client) ClientId() string {
+func (c *Client) ClientId() string {
 	if c.clientId != "" {
 		return c.clientId
 	}
@@ -79,7 +79,7 @@ func (c *client) ClientId() string {
 	return c.clientId
 }
 
-func (c *client) sendRequestWaitForReply(req *cellaserv.Request) *cellaserv.Reply {
+func (c *Client) sendRequestWaitForReply(req *cellaserv.Request) *cellaserv.Reply {
 	// Add message Id and increment nonce
 	req.Id = atomic.AddUint64(&c.currentRequestId, 1)
 	reqBytes, err := proto.Marshal(req)
@@ -106,7 +106,7 @@ func (c *client) sendRequestWaitForReply(req *cellaserv.Request) *cellaserv.Repl
 	return <-c.requestsInFlight[req.Id]
 }
 
-func (c *client) handleRequest(req *cellaserv.Request) error {
+func (c *Client) handleRequest(req *cellaserv.Request) error {
 	name := req.GetServiceName()
 	ident := req.GetServiceIdentification()
 	method := req.GetMethod()
@@ -152,7 +152,7 @@ func (c *client) handleRequest(req *cellaserv.Request) error {
 }
 
 // TODO(halfr): handle different kind of errors
-func (c *client) sendRequestReply(req *cellaserv.Request, replyData []byte, replyErr error) {
+func (c *Client) sendRequestReply(req *cellaserv.Request, replyData []byte, replyErr error) {
 	msgType := cellaserv.Message_Reply
 	msgContent := &cellaserv.Reply{Id: req.Id, Data: replyData}
 
@@ -177,7 +177,7 @@ func (c *client) sendRequestReply(req *cellaserv.Request, replyData []byte, repl
 	}
 }
 
-func (c *client) handleReply(rep *cellaserv.Reply) error {
+func (c *Client) handleReply(rep *cellaserv.Reply) error {
 	// Dispatch reply to spies
 	hasSpied := false
 	spyPending, ok := c.spyRequestsPending[rep.GetId()]
@@ -203,7 +203,7 @@ func (c *client) handleReply(rep *cellaserv.Reply) error {
 	return nil
 }
 
-func (c *client) handlePublish(pub *cellaserv.Publish) {
+func (c *Client) handlePublish(pub *cellaserv.Publish) {
 	eventName := pub.GetEvent()
 	c.logger.Infof("[Publish] Received: %s", eventName)
 	for _, h := range c.subscribers {
@@ -213,7 +213,7 @@ func (c *client) handlePublish(pub *cellaserv.Publish) {
 	}
 }
 
-func (c *client) handleMessage(msg *cellaserv.Message) error {
+func (c *Client) handleMessage(msg *cellaserv.Message) error {
 	var err error
 
 	// Parse and process message payload
@@ -250,17 +250,17 @@ func (c *client) handleMessage(msg *cellaserv.Message) error {
 }
 
 // Close shuts down the client.
-func (c *client) Close() {
+func (c *Client) Close() {
 	c.quit = true
 	close(c.quitCh)
 }
 
 // Quit returns the receive-only quit channel.
-func (c *client) Quit() <-chan struct{} {
+func (c *Client) Quit() <-chan struct{} {
 	return c.quitCh
 }
 
-func (c *client) RegisterService(s *service) {
+func (c *Client) RegisterService(s *service) {
 	// Make sure the second map is created
 	if _, ok := c.services[s.Name]; !ok {
 		c.services[s.Name] = make(map[string]*service)
@@ -281,7 +281,7 @@ func (c *client) RegisterService(s *service) {
 	c.logger.Infof("[Service] Service %s registered", s)
 }
 
-func (c *client) Publish(event string, data interface{}) {
+func (c *Client) Publish(event string, data interface{}) {
 	c.logger.Debugf("[Publish] Sending: %s(%v)", event, data)
 
 	// Serialize request payload
@@ -306,7 +306,7 @@ func (c *client) Publish(event string, data interface{}) {
 	common.SendMessage(c.conn, msg)
 }
 
-func (c *client) Subscribe(eventPattern string, handler subscriberHandler) error {
+func (c *Client) Subscribe(eventPattern string, handler subscriberHandler) error {
 	// Create and add to subscriber map
 	s := &subscriber{
 		eventPattern: eventPattern,
@@ -331,7 +331,7 @@ func (c *client) Subscribe(eventPattern string, handler subscriberHandler) error
 	return nil
 }
 
-func (c *client) Spy(serviceName string, serviceIdentification string, handler spyHandler) error {
+func (c *Client) Spy(serviceName string, serviceIdentification string, handler spyHandler) error {
 	// Create and add spy handler
 	spyIdents, ok := c.spies[serviceName]
 	if !ok {
@@ -353,8 +353,8 @@ func (c *client) Spy(serviceName string, serviceIdentification string, handler s
 	return nil
 }
 
-func newClient(conn net.Conn, name string) *client {
-	c := &client{
+func newClient(conn net.Conn, name string) *Client {
+	c := &Client{
 		logger:             common.NewLogger(name),
 		conn:               conn,
 		services:           make(map[string]map[string]*service),
@@ -417,7 +417,7 @@ type ClientOpts struct {
 }
 
 // NewConnection returns a Client instance connected to cellaserv or panics
-func NewClient(opts ClientOpts) *client {
+func NewClient(opts ClientOpts) *Client {
 	// Check cellaserv address
 	csAddr := opts.CellaservAddr
 	if csAddr == "" {

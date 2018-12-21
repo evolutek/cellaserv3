@@ -11,7 +11,7 @@ type serviceStub struct {
 	name           string
 	identification string
 
-	client *client
+	client *Client
 }
 
 func (s *serviceStub) String() string {
@@ -51,7 +51,7 @@ func (s *serviceStub) Request(method string, data interface{}) ([]byte, error) {
 	return reply.GetData(), nil
 }
 
-func NewServiceStub(c *client, name string, identification string) *serviceStub {
+func NewServiceStub(c *Client, name string, identification string) *serviceStub {
 	return &serviceStub{
 		name:           name,
 		identification: identification,

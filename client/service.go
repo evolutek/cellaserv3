@@ -24,7 +24,7 @@ func (s *service) String() string {
 }
 
 // NewService returns an initialized Service instance
-func (c *client) NewService(name string, identification string) *service {
+func (c *Client) NewService(name string, identification string) *service {
 	return &service{
 		Name:            name,
 		Identification:  identification,
