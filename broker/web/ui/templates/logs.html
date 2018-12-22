@@ -7,11 +7,10 @@
 </div>
 
 {{ range $log, $content :=  . }}
-
 <h2>{{ $log }}</h2>
 <pre>
 {{ $content }}
 </pre>
+{{end}}
 
-{{ end }}
 {{end}}

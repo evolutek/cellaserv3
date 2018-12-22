@@ -53,9 +53,11 @@
 	  <td>{{ $elt.Name }}</td>
 	  <td>{{ or $elt.Identification "Ø" }}</td>
 	  <td class="service-action">
-	    <button type="button" class="btn btn-secondary btn-service-action">
-	      <span data-feather="activity"></span>
-	    </button>
+	    <a href="{{ pathPrefix }}/logs/{{ $elt.Name }}">
+	      <button type="button" class="btn btn-secondary btn-service-action">
+		<span data-feather="rss"></span>
+	      </button>
+	    </a>
 	    <button type="button" class="btn btn-secondary btn-service-action">
 	      <span data-feather="radio"></span>
 	    </button>
@@ -89,10 +91,10 @@
       </thead>
 
       <tbody class="animate">
-	{{ range $event, $subscribers := .Events }}
-	  {{ range $index, $sub := $subscribers }}
+	{{ range $event := .Events }}
+	  {{ range $index, $sub := $event.Subscribers }}
 	    <tr>
-	      {{ if (eq $index 0) }}<td rowspan="{{ len $subscribers }}">{{ $event }}</td>{{ end }}
+	      {{ if (eq $index 0) }}<td rowspan="{{ len $event.Subscribers }}">{{ $event.Event }}</td>{{ end }}
 	      <td>{{ $sub }}</td>
 	    </tr>
 	  {{ end }}
