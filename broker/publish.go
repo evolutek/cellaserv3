@@ -25,8 +25,8 @@ func (b *Broker) handlePublish(c *client, msgBytes []byte, pub *cellaserv.Publis
 }
 
 func (b *Broker) doPublish(msgBytes []byte, pub *cellaserv.Publish) {
-	// Holds subscribers for this publish
-	var subs []*client
+	// Set of subscribers for this publish
+	subs := make(map[*client]bool)
 
 	// Handle log publishes
 	if b.Options.PublishLoggingEnabled && strings.HasPrefix(pub.Event, "log.") {
@@ -40,15 +40,19 @@ func (b *Broker) doPublish(msgBytes []byte, pub *cellaserv.Publish) {
 	for pattern, clients := range b.subscriberMatchMap {
 		matched, _ := filepath.Match(pattern, pub.Event)
 		if matched {
-			subs = append(subs, clients...)
+			for _, client := range clients {
+				subs[client] = true
+			}
 		}
 	}
 	b.subscriberMapMtx.RUnlock()
 
 	// Add exact matches
-	subs = append(subs, b.subscriberMap[pub.Event]...)
+	for _, client := range b.subscriberMap[pub.Event] {
+		subs[client] = true
+	}
 
-	for _, c := range subs {
+	for c, _ := range subs {
 		b.logger.Debugf("[Publish] %s → %s", pub.Event, c)
 		b.sendRawMessage(c.conn, msgBytes)
 	}
