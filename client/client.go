@@ -40,6 +40,7 @@ type spyPendingRequest struct {
 	spies []spyHandler
 }
 
+// TODO(halfr): add mutex to protect against race condition
 type Client struct {
 	// The cellaserv service stub
 	Cs *serviceStub
