@@ -3,6 +3,7 @@ package web
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	template "html/template"
 	template_text "html/template"
 	"io/ioutil"
@@ -86,7 +87,7 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
-// subscribe handles websocket subscribe
+// subscribe handles websocket subscribes
 func (h *Handler) subscribe(w http.ResponseWriter, r *http.Request) {
 	// Extract request parameters
 	event := route.Param(r.Context(), "event")
@@ -101,7 +102,16 @@ func (h *Handler) subscribe(w http.ResponseWriter, r *http.Request) {
 
 	err = h.client.Subscribe(event,
 		func(eventName string, eventBytes []byte) {
-			err = c.WriteMessage(websocket.TextMessage, eventBytes)
+			msg := struct {
+				Name string `json:"name"`
+				Data string `json:"data"`
+			}{Name: eventName, Data: string(eventBytes)}
+			msgTxt, err := json.Marshal(msg)
+			if err != nil {
+				h.logger.Error("json:", err)
+				return
+			}
+			err = c.WriteMessage(websocket.TextMessage, msgTxt)
 			if err != nil {
 				h.logger.Error("write:", err)
 				return
@@ -262,6 +272,7 @@ func New(o *Options, logger *logging.Logger, broker *broker.Broker) *Handler {
 	router.Post("/api/v1/request/:service/:method", h.request)
 	router.Post("/api/v1/publish/:event", h.publish)
 	router.Get("/api/v1/subscribe/:event", h.subscribe)
+	// TODO(halfr): spy
 
 	router.Get("/debug/*subpath", serveDebug)
 	router.Post("/debug/*subpath", serveDebug)
