@@ -18,9 +18,34 @@ func (s *serviceStub) String() string {
 	return fmt.Sprintf("%s[%s]", s.name, s.identification)
 }
 
-func (s *serviceStub) Request(method string, data interface{}) ([]byte, error) {
-	s.client.logger.Debugf("[ServiceStub] Request %s.%s(%#v)", s, method, data)
+func (s *serviceStub) sendRequest(req *cellaserv.Request) ([]byte, error) {
+	s.client.logger.Debugf("[ServiceStub] Request %s[%s].%s(%#v)", req.ServiceName, req.ServiceIdentification, req.Method, req.Data)
 
+	reply := s.client.sendRequestWaitForReply(req)
+
+	// Check for errors
+	replyError := reply.GetError()
+	if replyError != nil {
+		s.client.logger.Errorf("[Reply] Error: %s", replyError.String())
+		return nil, fmt.Errorf(replyError.String())
+	}
+
+	return reply.GetData(), nil
+}
+
+func (s *serviceStub) RequestNoData(method string) ([]byte, error) {
+	// Create Request
+	req := &cellaserv.Request{
+		ServiceName:           s.name,
+		ServiceIdentification: s.identification,
+		Method:                method,
+		// Id set by client
+	}
+
+	return s.sendRequest(req)
+}
+
+func (s *serviceStub) Request(method string, data interface{}) ([]byte, error) {
 	// Serialize request payload
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
@@ -36,16 +61,7 @@ func (s *serviceStub) Request(method string, data interface{}) ([]byte, error) {
 		// Id set by client
 	}
 
-	reply := s.client.sendRequestWaitForReply(req)
-
-	// Check for errors
-	replyError := reply.GetError()
-	if replyError != nil {
-		s.client.logger.Errorf("[Reply] Error: %s", replyError.String())
-		return nil, fmt.Errorf(replyError.String())
-	}
-
-	return reply.GetData(), nil
+	return s.sendRequest(req)
 }
 
 func NewServiceStub(c *Client, name string, identification string) *serviceStub {
