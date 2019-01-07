@@ -56,7 +56,12 @@ func (h *Handler) request(w http.ResponseWriter, r *http.Request) {
 
 	// Make request
 	serviceStub := client.NewServiceStub(h.client, service, identification)
-	resp, err := serviceStub.Request(method, body)
+	var resp []byte
+	if len(body) == 0 {
+		resp, err = serviceStub.RequestNoData(method)
+	} else {
+		resp, err = serviceStub.Request(method, body)
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

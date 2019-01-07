@@ -19,7 +19,7 @@ func (s *serviceStub) String() string {
 }
 
 func (s *serviceStub) sendRequest(req *cellaserv.Request) ([]byte, error) {
-	s.client.logger.Debugf("[ServiceStub] Request %s[%s].%s(%#v)", req.ServiceName, req.ServiceIdentification, req.Method, req.Data)
+	s.client.logger.Debugf("[ServiceStub] Request %s[%s].%s(%s)", req.ServiceName, req.ServiceIdentification, req.Method, req.Data)
 
 	reply := s.client.sendRequestWaitForReply(req)
 
