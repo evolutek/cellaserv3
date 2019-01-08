@@ -225,7 +225,7 @@ func (b *Broker) Run(ctx context.Context) error {
 func New(options Options, logger *logging.Logger) *Broker {
 	// Set default options
 	if options.RequestTimeoutSec == 0 {
-		options.RequestTimeoutSec = 5
+		options.RequestTimeoutSec = 3600
 	}
 
 	m := &Monitoring{
