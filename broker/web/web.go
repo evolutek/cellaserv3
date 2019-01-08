@@ -42,15 +42,14 @@ type Handler struct {
 	client  *client.Client
 }
 
-func (h *Handler) request(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) makeRequestFromHTTP(r *http.Request) ([]byte, error) {
 	// Extract request parameters
 	service := route.Param(r.Context(), "service")
 	service, identification := common.ParseServicePath(service)
 	method := route.Param(r.Context(), "method")
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, err
 	}
 
 	// Make request
@@ -61,6 +60,18 @@ func (h *Handler) request(w http.ResponseWriter, r *http.Request) {
 	} else {
 		resp, err = serviceStub.Request(method, body)
 	}
+
+	return resp, err
+}
+
+func (h *Handler) request(w http.ResponseWriter, r *http.Request) {
+	requestData := struct {
+	}{}
+	h.executeTemplate(w, "request.html", requestData)
+}
+
+func (h *Handler) apiRequest(w http.ResponseWriter, r *http.Request) {
+	resp, err := h.makeRequestFromHTTP(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -73,7 +84,7 @@ func (h *Handler) request(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) publish(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) apiPublish(w http.ResponseWriter, r *http.Request) {
 	// Extract request parameters
 	event := route.Param(r.Context(), "event")
 	body, err := ioutil.ReadAll(r.Body)
@@ -91,8 +102,8 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
-// subscribe handles websocket subscribes
-func (h *Handler) subscribe(w http.ResponseWriter, r *http.Request) {
+// apiSubscribe handles websocket subscribes
+func (h *Handler) apiSubscribe(w http.ResponseWriter, r *http.Request) {
 	// Extract request parameters
 	event := route.Param(r.Context(), "event")
 
@@ -269,15 +280,17 @@ func New(o *Options, logger common.Logger, broker *broker.Broker) *Handler {
 		http.Redirect(w, r, "/logs/*", http.StatusFound)
 	})
 	router.Get("/logs/:pattern", h.logs)
+	router.Get("/request/:service/:method", h.request)
+	router.Post("/request/:service/:method", h.request)
 	router.Get("/static/*filepath", route.FileServe(path.Join(o.AssetsPath, "static")))
 
 	router.Get("/metrics", promhttp.HandlerFor(prometheus.Gatherers{prometheus.DefaultGatherer, broker.Monitoring.Registry}, promhttp.HandlerOpts{}).ServeHTTP)
 
 	// cellaserv HTTP API
-	router.Get("/api/v1/request/:service/:method", h.request)
-	router.Post("/api/v1/request/:service/:method", h.request)
-	router.Post("/api/v1/publish/:event", h.publish)
-	router.Get("/api/v1/subscribe/:event", h.subscribe)
+	router.Get("/api/v1/request/:service/:method", h.apiRequest)
+	router.Post("/api/v1/request/:service/:method", h.apiRequest)
+	router.Post("/api/v1/publish/:event", h.apiPublish)
+	router.Get("/api/v1/subscribe/:event", h.apiSubscribe)
 	// TODO(halfr): spy
 
 	router.Get("/debug/*subpath", serveDebug)

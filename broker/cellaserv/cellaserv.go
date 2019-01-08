@@ -133,7 +133,10 @@ func (cs *Cellaserv) Run(ctx context.Context) error {
 	}
 
 	// Create the cellaserv service
-	c := client.NewClient(client.ClientOpts{CellaservAddr: cs.options.BrokerAddr, Name: "cellaserv-service"})
+	c := client.NewClient(client.ClientOpts{
+		CellaservAddr: cs.options.BrokerAddr,
+		Name:          "cellaserv-service",
+	})
 	service := c.NewService("cellaserv", "")
 	service.HandleRequestFunc("whoami", cs.whoami)
 	service.HandleRequestFunc("name_client", cs.nameClient)
