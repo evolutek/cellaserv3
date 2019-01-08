@@ -21,8 +21,7 @@ func TestWeb(t *testing.T) {
 	cs := cellaserv.New(csOpts, broker, common.NewLogger("cellaserv"))
 
 	go func() {
-		err := broker.Run(context.Background())
-		if err != nil {
+		if err := broker.Run(context.Background()); err != nil {
 			panic(fmt.Sprintf("Could not start broker: %s", err))
 		}
 	}()
@@ -34,6 +33,7 @@ func TestWeb(t *testing.T) {
 	}()
 
 	opts := &Options{
+		BrokerAddr: ":4204",
 		ListenAddr: ":4284",
 		AssetsPath: "ui",
 	}
