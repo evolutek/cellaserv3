@@ -71,7 +71,7 @@ func (b *Broker) handleLoggingPublish(event string, data string) {
 	}
 
 	if strings.ContainsRune(data, '\n') {
-		b.logger.Warningf("[Publish] Logging for %s contains '\\n': %s", event, data)
+		b.logger.Warnf("[Publish] Logging for %s contains '\\n': %s", event, data)
 	}
 
 	_, err := logger.Write([]byte(data + "\n"))

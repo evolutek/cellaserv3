@@ -10,8 +10,6 @@ import (
 	"bitbucket.org/evolutek/cellaserv3/broker/cellaserv/api"
 	"bitbucket.org/evolutek/cellaserv3/client"
 	"bitbucket.org/evolutek/cellaserv3/common"
-
-	logging "github.com/op/go-logging"
 )
 
 // Options for the cellaserv service
@@ -23,7 +21,7 @@ type Options struct {
 type Cellaserv struct {
 	options *Options
 	broker  *broker.Broker
-	logger  *logging.Logger
+	logger  common.Logger
 
 	registeredCh chan struct{}
 }
@@ -46,7 +44,7 @@ func (cs *Cellaserv) nameClient(req *cellaserv.Request) (interface{}, error) {
 	var data api.NameClientRequest
 	err := json.Unmarshal(req.Data, &data)
 	if err != nil {
-		cs.logger.Warningf("[Cellaserv] Could not unmarshal request data: %s, %s", req.Data, err)
+		cs.logger.Warnf("[Cellaserv] Could not unmarshal request data: %s, %s", req.Data, err)
 		return nil, err
 	}
 
@@ -83,7 +81,7 @@ func (cs *Cellaserv) handleSpy(req *cellaserv.Request) (interface{}, error) {
 	var data api.SpyRequest
 	err := json.Unmarshal(req.Data, &data)
 	if err != nil {
-		cs.logger.Warningf("[Cellaserv] Could not spy: %s", err)
+		cs.logger.Warnf("[Cellaserv] Could not spy: %s", err)
 		return nil, err
 	}
 
@@ -94,7 +92,7 @@ func (cs *Cellaserv) handleSpy(req *cellaserv.Request) (interface{}, error) {
 
 	client, ok := cs.broker.GetClient(data.ClientId)
 	if !ok {
-		cs.logger.Warningf("[Cellaserv] Could not spy, no such service: %s %s", data.ServiceName,
+		cs.logger.Warnf("[Cellaserv] Could not spy, no such service: %s %s", data.ServiceName,
 			data.ServiceIdentification)
 		return nil, fmt.Errorf("No such service: %s[%s]", data.ServiceName, data.ServiceIdentification)
 	}
@@ -112,13 +110,13 @@ func (cs *Cellaserv) getLogs(req *cellaserv.Request) (interface{}, error) {
 	var data api.GetLogsRequest
 	err := json.Unmarshal(req.Data, &data)
 	if err != nil {
-		cs.logger.Warningf("[Cellaserv] Invalid get_logs() request: %s", err)
+		cs.logger.Warnf("[Cellaserv] Invalid get_logs() request: %s", err)
 		return nil, err
 	}
 
 	logs, err := cs.broker.GetLogsByPattern(data.Pattern)
 	if err != nil {
-		cs.logger.Warningf("[Cellaserv] Could not get logs: %s", err)
+		cs.logger.Warnf("[Cellaserv] Could not get logs: %s", err)
 		return nil, err
 	}
 
@@ -135,7 +133,7 @@ func (cs *Cellaserv) Run(ctx context.Context) error {
 	}
 
 	// Create the cellaserv service
-	c := client.NewClient(client.ClientOpts{CellaservAddr: cs.options.BrokerAddr})
+	c := client.NewClient(client.ClientOpts{CellaservAddr: cs.options.BrokerAddr, Name: "cellaserv-service"})
 	service := c.NewService("cellaserv", "")
 	service.HandleRequestFunc("whoami", cs.whoami)
 	service.HandleRequestFunc("name_client", cs.nameClient)
@@ -161,7 +159,7 @@ func (cs *Cellaserv) Run(ctx context.Context) error {
 	}
 }
 
-func New(options *Options, broker *broker.Broker, logger *logging.Logger) *Cellaserv {
+func New(options *Options, broker *broker.Broker, logger common.Logger) *Cellaserv {
 	return &Cellaserv{
 		options:      options,
 		broker:       broker,

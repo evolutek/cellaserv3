@@ -1,51 +1,62 @@
 package common
 
 import (
-	"os"
-	"sync"
-
-	logging "github.com/op/go-logging"
+	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
-var appLogLevel = logging.ERROR
-var logBackendInit sync.Once
-var loggingMtx sync.Mutex
+// Logger is the interface for loggers used in the Prometheus components.
+type Logger interface {
+	Debug(...interface{})
+	Debugln(...interface{})
+	Debugf(string, ...interface{})
+
+	Info(...interface{})
+	Infoln(...interface{})
+	Infof(string, ...interface{})
+
+	Warn(...interface{})
+	Warnln(...interface{})
+	Warnf(string, ...interface{})
+
+	Error(...interface{})
+	Errorln(...interface{})
+	Errorf(string, ...interface{})
+
+	Fatal(...interface{})
+	Fatalln(...interface{})
+	Fatalf(string, ...interface{})
+}
 
 type loggerSettings struct {
-	level string
+	level  string
+	format string
 }
 
 func (s *loggerSettings) apply(ctx *kingpin.ParseContext) error {
-	var err error
-	appLogLevel, err = logging.LogLevel(s.level)
-	return err
+	lvl, err := logrus.ParseLevel(s.level)
+	if err != nil {
+		return err
+	}
+	log.SetLevel(lvl)
+	log.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp: true,
+	})
+	return nil
 }
 
 // AddFlags adds the flags used by this package to the Kingpin application.
 // To use the default Kingpin application, call AddFlags(kingpin.CommandLine)
 func AddFlags(a *kingpin.Application) {
 	s := loggerSettings{}
-	a.Flag("log-level", "Only log messages with the given severity or above. Valid levels: [debug, info, warning, error, critical]").
+	a.Flag("log-level", "Only log messages with the given severity or above. Valid levels: [debug, info, warn, error, fatal]").
 		Default("debug").
 		StringVar(&s.level)
 	a.Action(s.apply)
 }
 
-func NewLogger(module string) *logging.Logger {
-	logBackendInit.Do(func() {
-		format := logging.MustStringFormatter("%{level:-7s} %{time:Jan _2 15:04:05.000} %{message}")
-		logging.SetFormatter(format)
-
-		logBackend := logging.NewLogBackend(os.Stderr, "", 0)
-		logBackend.Color = true
-		logging.SetBackend(logBackend)
-	})
-
-	logger := logging.MustGetLogger(module)
-	loggingMtx.Lock()
-	logging.SetLevel(appLogLevel, module)
-	loggingMtx.Unlock()
-
-	return logger
+func NewLogger(module string) Logger {
+	contextLogger := log.WithFields(log.Fields{"module": module})
+	return contextLogger
 }

@@ -16,7 +16,6 @@ import (
 	cs_api "bitbucket.org/evolutek/cellaserv3/broker/cellaserv/api"
 	"bitbucket.org/evolutek/cellaserv3/common"
 	"github.com/golang/protobuf/proto"
-	logging "github.com/op/go-logging"
 )
 
 const (
@@ -45,7 +44,7 @@ type Client struct {
 	// The cellaserv service stub
 	Cs *serviceStub
 
-	logger *logging.Logger
+	logger common.Logger
 
 	// Connection to cellaserv
 	conn net.Conn
@@ -168,7 +167,7 @@ func (c *Client) sendRequestReply(req *cellaserv.Request, replyData []byte, repl
 
 	if replyErr != nil {
 		// Log error
-		c.logger.Warningf("[Request] Reply error: %s", replyErr)
+		c.logger.Warnf("[Request] Reply error: %s", replyErr)
 
 		// Add error info to reply
 		errString := replyErr.Error()
@@ -183,7 +182,7 @@ func (c *Client) sendRequestReply(req *cellaserv.Request, replyData []byte, repl
 
 	err := common.SendMessage(c.conn, msg)
 	if err != nil {
-		c.logger.Warningf("[Request] Could not send reply: %s", err)
+		c.logger.Warnf("[Request] Could not send reply: %s", err)
 	}
 }
 
@@ -369,8 +368,13 @@ func (c *Client) Spy(serviceName string, serviceIdentification string, handler s
 }
 
 func newClient(conn net.Conn, name string) *Client {
+	logName := name
+	if logName == "" {
+		logName = "client"
+	}
+
 	c := &Client{
-		logger:             common.NewLogger(name),
+		logger:             common.NewLogger(logName),
 		conn:               conn,
 		services:           make(map[string]map[string]*service),
 		requestsInFlight:   make(map[uint64]chan *cellaserv.Reply),

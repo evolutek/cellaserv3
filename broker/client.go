@@ -186,7 +186,7 @@ func (b *Broker) newClient(conn net.Conn) *client {
 func (b *Broker) RenameClientFromRequest(req *cellaserv.Request, name string) {
 	client, err := b.GetRequestSender(req)
 	if err != nil {
-		b.logger.Warningf("[client] Could not rename client: %s", err)
+		b.logger.Warnf("[client] Could not rename client: %s", err)
 		return
 	}
 	// Set client name

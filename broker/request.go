@@ -26,13 +26,13 @@ func (b *Broker) handleRequest(c *client, msgRaw []byte, req *cellaserv.Request)
 
 	idents, ok := b.services[name]
 	if !ok || len(idents) == 0 {
-		b.logger.Warningf("[Request] id:%x No such service: %s", id, name)
+		b.logger.Warnf("[Request] id:%x No such service: %s", id, name)
 		b.sendReplyError(c, req, cellaserv.Reply_Error_NoSuchService)
 		return
 	}
 	srvc, ok := idents[ident]
 	if !ok {
-		b.logger.Warningf("[Request] id:%x No such identification for service %s: %s",
+		b.logger.Warnf("[Request] id:%x No such identification for service %s: %s",
 			id, name, ident)
 		b.sendReplyError(c, req, cellaserv.Reply_Error_InvalidIdentification)
 		return
@@ -71,7 +71,7 @@ func (b *Broker) handleRequest(c *client, msgRaw []byte, req *cellaserv.Request)
 	for _, spy := range srvc.spies {
 		err := common.SendRawMessage(spy.conn, msgRaw)
 		if err != nil {
-			b.logger.Warningf("[Request] Could not forward request to spy %s: %s", spy, err)
+			b.logger.Warnf("[Request] Could not forward request to spy %s: %s", spy, err)
 		}
 	}
 	srvc.spiesMtx.RUnlock()

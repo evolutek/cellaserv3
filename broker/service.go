@@ -6,7 +6,6 @@ import (
 
 	"bitbucket.org/evolutek/cellaserv3/broker/cellaserv/api"
 	"bitbucket.org/evolutek/cellaserv3/common"
-	logging "github.com/op/go-logging"
 )
 
 type service struct {
@@ -15,7 +14,7 @@ type service struct {
 	Identification string
 	spiesMtx       sync.RWMutex
 	spies          []*client
-	logger         *logging.Logger
+	logger         common.Logger
 }
 
 func (s *service) String() string {

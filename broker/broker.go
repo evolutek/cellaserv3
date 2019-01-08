@@ -12,7 +12,6 @@ import (
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
 	"bitbucket.org/evolutek/cellaserv3/common"
 	"github.com/golang/protobuf/proto"
-	logging "github.com/op/go-logging"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -33,7 +32,7 @@ type Broker struct {
 
 	Options *Options
 
-	logger *logging.Logger
+	logger common.Logger
 
 	// Currently handled clients
 	mapClientIdToClient sync.Map // map[string]*client
@@ -177,7 +176,7 @@ func (b *Broker) serve(l net.Listener, errCh chan error) {
 		nerr, ok := err.(net.Error)
 		if ok {
 			if nerr.Temporary() {
-				b.logger.Warningf("[Broker] Could not accept: %s", err)
+				b.logger.Warnf("[Broker] Could not accept: %s", err)
 				time.Sleep(10 * time.Millisecond)
 				continue
 			} else {
@@ -222,7 +221,7 @@ func (b *Broker) Run(ctx context.Context) error {
 	}
 }
 
-func New(options Options, logger *logging.Logger) *Broker {
+func New(options Options, logger common.Logger) *Broker {
 	// Set default options
 	if options.RequestTimeoutSec == 0 {
 		options.RequestTimeoutSec = 3600

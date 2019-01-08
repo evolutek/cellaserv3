@@ -26,7 +26,7 @@ func (b *Broker) handleRegister(c *client, msg *cellaserv.Register) {
 
 	// Check for duplicate services
 	if s, ok := b.services[name][ident]; ok {
-		b.logger.Warningf("[Services] Replace %s", s)
+		b.logger.Warnf("[Services] Replace %s", s)
 
 		pubJSON, _ := json.Marshal(s.JSONStruct())
 		b.cellaservPublishBytes(logLostService, pubJSON)
@@ -43,11 +43,11 @@ func (b *Broker) handleRegister(c *client, msg *cellaserv.Register) {
 		// Sanity checks
 		if ident == "" {
 			if len(b.services[name]) >= 1 {
-				b.logger.Warning("[Service] New service have no identification but there is already a service with an identification.")
+				b.logger.Warn("[Service] New service have no identification but there is already a service with an identification.")
 			}
 		} else {
 			if _, ok = b.services[name][""]; ok {
-				b.logger.Warning("[Service] New service have an identification but there is already a service without an identification")
+				b.logger.Warn("[Service] New service have an identification but there is already a service without an identification")
 			}
 		}
 	}

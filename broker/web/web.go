@@ -19,7 +19,6 @@ import (
 	"bitbucket.org/evolutek/cellaserv3/common"
 
 	"github.com/gorilla/websocket"
-	logging "github.com/op/go-logging"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/route"
@@ -37,7 +36,7 @@ type Options struct {
 // cellaserv components used in the web interface.
 type Handler struct {
 	options *Options
-	logger  *logging.Logger
+	logger  common.Logger
 	router  *route.Router
 	broker  *broker.Broker
 	client  *client.Client
@@ -105,6 +104,8 @@ func (h *Handler) subscribe(w http.ResponseWriter, r *http.Request) {
 	}
 	defer c.Close()
 
+	// TODO(halfr): handle websocket control messages and cancel subscribe
+	// when the socket is closed
 	err = h.client.Subscribe(event,
 		func(eventName string, eventBytes []byte) {
 			msg := struct {
@@ -249,7 +250,7 @@ func (h *Handler) Run(ctx context.Context) error {
 }
 
 // Returns a new web endpoint Handler
-func New(o *Options, logger *logging.Logger, broker *broker.Broker) *Handler {
+func New(o *Options, logger common.Logger, broker *broker.Broker) *Handler {
 	router := route.New()
 
 	h := &Handler{
