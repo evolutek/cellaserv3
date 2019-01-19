@@ -232,7 +232,7 @@ func New(options Options, logger common.Logger) *Broker {
 		requests: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Namespace: "cellaserv",
 			Subsystem: "broker",
-			Name:      "request_latency_ms",
+			Name:      "request_latency_sec",
 			Buckets:   prometheus.ExponentialBuckets(0.0001, 2, 15),
 		}, []string{"service", "identification", "method"}),
 	}
