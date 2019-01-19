@@ -41,6 +41,11 @@ type spyPendingRequest struct {
 
 // TODO(halfr): add mutex to protect against race condition
 type Client struct {
+	// Nonce used to compute request ids
+	// This field address must be aligned to prevent unaligned atomic
+	// writes. See: https://github.com/golang/go/issues/23345
+	currentRequestId uint64
+
 	// The cellaserv service stub
 	Cs *serviceStub
 
@@ -56,8 +61,6 @@ type Client struct {
 	spies map[string]map[string][]spyHandler
 	// Spy requests missing their associated replies
 	spyRequestsPending map[uint64]*spyPendingRequest
-	// Nonce used to compute request ids
-	currentRequestId uint64
 	// Map of request ids to their replies
 	requestsInFlight map[uint64]chan *cellaserv.Reply
 	// Broker identifier for this client
