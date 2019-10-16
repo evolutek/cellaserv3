@@ -57,7 +57,7 @@ func (b *Broker) GetService(name string, identification string) (srvc *service, 
 	srvc, ok = b.services[name][identification]
 	b.servicesMtx.RUnlock()
 	if !ok {
-		err = fmt.Errorf("Not such service: %s[%s]", name, identification)
+		err = fmt.Errorf("No such service: %s[%s]", name, identification)
 	}
 	return
 }
