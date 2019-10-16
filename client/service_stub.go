@@ -19,14 +19,14 @@ func (s *serviceStub) String() string {
 }
 
 func (s *serviceStub) sendRequest(req *cellaserv.Request) ([]byte, error) {
-	s.client.logger.Debugf("[ServiceStub] Request %s[%s].%s(%s)", req.ServiceName, req.ServiceIdentification, req.Method, req.Data)
+	s.client.logger.Debugf("Sending request %s[%s].%s(%s)", req.ServiceName, req.ServiceIdentification, req.Method, req.Data)
 
 	reply := s.client.sendRequestWaitForReply(req)
 
 	// Check for errors
 	replyError := reply.GetError()
 	if replyError != nil {
-		s.client.logger.Errorf("[Reply] Error: %s", replyError.String())
+		s.client.logger.Errorf("Received reply error: %s", replyError.String())
 		return nil, fmt.Errorf(replyError.String())
 	}
 

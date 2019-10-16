@@ -82,11 +82,11 @@ func main() {
 	log := common.NewLogger("cellaserv")
 
 	// Broker component
-	broker := broker.New(brokerOptions, common.NewLogger("broker"))
+	broker := broker.New(brokerOptions, common.NewLogger("core"))
 
 	// Cellaserv service
 	csOpts := &cellaserv.Options{BrokerAddr: brokerOptions.ListenAddress}
-	cs := cellaserv.New(csOpts, broker, common.NewLogger("cellaserv"))
+	cs := cellaserv.New(csOpts, broker, common.NewLogger("internal-service"))
 
 	// Web component
 	webHander := web.New(&webOptions, common.NewLogger("web"), broker)
@@ -133,6 +133,7 @@ func main() {
 		})
 	}
 
+	// Start!
 	if err := g.Run(); err != nil {
 		log.Errorf("Error: %s", err)
 		os.Exit(1)

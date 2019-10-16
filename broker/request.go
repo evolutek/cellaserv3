@@ -7,6 +7,7 @@ import (
 	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
 	"bitbucket.org/evolutek/cellaserv3/common"
 	"github.com/prometheus/client_golang/prometheus"
+	log "github.com/sirupsen/logrus"
 )
 
 type requestTracking struct {
@@ -22,18 +23,22 @@ func (b *Broker) handleRequest(c *client, msgRaw []byte, req *cellaserv.Request)
 	id := req.Id
 	ident := req.ServiceIdentification
 
-	b.logger.Infof("[Request] id:%x %s → %s[%s].%s", id, c, name, ident, method)
+	logger := log.WithFields(log.Fields{
+		"module": "request",
+		"client": c.String(),
+		"id":     id,
+		"method": method,
+	})
 
 	idents, ok := b.services[name]
 	if !ok || len(idents) == 0 {
-		b.logger.Warnf("[Request] id:%x No such service: %s", id, name)
+		logger.Warnln("No such service with this name.")
 		b.sendReplyError(c, req, cellaserv.Reply_Error_NoSuchService)
 		return
 	}
 	srvc, ok := idents[ident]
 	if !ok {
-		b.logger.Warnf("[Request] id:%x No such identification for service %s: %s",
-			id, name, ident)
+		logger.Warnln("No such service with that identification.")
 		b.sendReplyError(c, req, cellaserv.Reply_Error_InvalidIdentification)
 		return
 	}
@@ -48,7 +53,7 @@ func (b *Broker) handleRequest(c *client, msgRaw []byte, req *cellaserv.Request)
 			delete(b.reqIds, id)
 			b.reqIdsMtx.Unlock()
 
-			b.logger.Errorf("[Request] id:%x Timeout of %s", id, srvc)
+			logger.Errorln("Timeout.")
 			b.sendReplyError(c, req, cellaserv.Reply_Error_Timeout)
 		}
 	}
@@ -71,7 +76,7 @@ func (b *Broker) handleRequest(c *client, msgRaw []byte, req *cellaserv.Request)
 	for _, spy := range srvc.spies {
 		err := common.SendRawMessage(spy.conn, msgRaw)
 		if err != nil {
-			b.logger.Warnf("[Request] Could not forward request to spy %s: %s", spy, err)
+			logger.Warnf("Could not forward request to spy %s: %s", spy, err)
 		}
 	}
 	srvc.spiesMtx.RUnlock()

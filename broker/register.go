@@ -10,7 +10,6 @@ import (
 func (b *Broker) handleRegister(c *client, msg *cellaserv.Register) {
 	name := msg.Name
 	ident := msg.Identification
-	b.logger.Infof("[Services] New %s[%s]", name, ident)
 
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
@@ -24,9 +23,11 @@ func (b *Broker) handleRegister(c *client, msg *cellaserv.Register) {
 
 	registeredService := newService(c, name, ident)
 
+	b.logger.Infof("New service: %s", registeredService)
+
 	// Check for duplicate services
 	if s, ok := b.services[name][ident]; ok {
-		b.logger.Warnf("[Services] Replace %s", s)
+		s.logger.Warnf("Service is replaced.")
 
 		pubJSON, _ := json.Marshal(s.JSONStruct())
 		b.cellaservPublishBytes(logLostService, pubJSON)
@@ -43,11 +44,11 @@ func (b *Broker) handleRegister(c *client, msg *cellaserv.Register) {
 		// Sanity checks
 		if ident == "" {
 			if len(b.services[name]) >= 1 {
-				b.logger.Warn("[Service] New service have no identification but there is already a service with an identification.")
+				b.logger.Warn("New service has no identification but there is already a service with an identification.")
 			}
 		} else {
 			if _, ok = b.services[name][""]; ok {
-				b.logger.Warn("[Service] New service have an identification but there is already a service without an identification")
+				b.logger.Warn("New service has an identification but there is already a service without an identification")
 			}
 		}
 	}
@@ -58,6 +59,7 @@ func (b *Broker) handleRegister(c *client, msg *cellaserv.Register) {
 	// Keep track of origin client in order to remove it when the connection is closed
 	c.services = append(c.services, registeredService)
 
+	// Special case for the internal cellaserv service.
 	if name == "cellaserv" {
 		close(b.startedWithCellaserv)
 	}

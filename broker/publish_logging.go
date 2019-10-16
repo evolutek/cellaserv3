@@ -17,7 +17,7 @@ func (b *Broker) GetLogsByPattern(pattern string) (api.GetLogsResponse, error) {
 	pathPattern := path.Join(b.publishLoggingRoot, pattern)
 
 	if !strings.HasPrefix(pathPattern, b.Options.LogsDir) {
-		err := fmt.Errorf("Don't try to do directory traversal: %s", pattern)
+		err := fmt.Errorf("Don't try to do directory traversal: %q", pattern)
 		return nil, err
 	}
 
@@ -64,18 +64,18 @@ func (b *Broker) handleLoggingPublish(event string, data string) {
 		var err error
 		logger, err = b.publishLoggingSetup(event)
 		if err != nil {
-			b.logger.Errorf("[Publish] Could not create logging file for %s: %s", event, err)
+			b.logger.Errorf("Could not create logging file for %s: %s", event, err)
 			return
 		}
 		b.publishLoggingLoggers.Store(event, logger)
 	}
 
 	if strings.ContainsRune(data, '\n') {
-		b.logger.Warnf("[Publish] Logging for %s contains '\\n': %s", event, data)
+		b.logger.Warnf("Logging for %s contains '\\n': %s", event, data)
 	}
 
 	_, err := logger.Write([]byte(data + "\n"))
 	if err != nil {
-		b.logger.Errorf("[Publish] Could not write to logging file %s: %s", event, err)
+		b.logger.Errorf("Could not write to logging file %s: %s", event, err)
 	}
 }

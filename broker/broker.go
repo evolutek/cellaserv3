@@ -81,21 +81,21 @@ func (b *Broker) Quit() chan struct{} {
 // Manage incoming connexion
 func (b *Broker) handle(conn net.Conn) {
 	c := b.newClient(conn)
-	b.logger.Infof("[Broker] New client: %s", c)
+	b.logger.Infof("New client: %s", c)
 
 	// Handle all messages received on this connection
 	for {
 		closed, msgBytes, msg, err := common.RecvMessage(conn)
 		if err != nil {
-			b.logger.Errorf("[Message] Receive: %s", err)
+			b.logger.Errorf("Could not receive message: %s", err)
 		}
 		if closed {
-			b.logger.Infof("[Broker] Client disconnected: %s", c)
+			b.logger.Infof("Client disconnected: %s", c)
 			break
 		}
 		err = b.handleMessage(c, msgBytes, msg)
 		if err != nil {
-			b.logger.Errorf("[Message] Error handling message: %s", err)
+			b.logger.Errorf("Could not handle message: %s", err)
 		}
 	}
 
@@ -107,7 +107,7 @@ func (b *Broker) logUnmarshalError(msg []byte) {
 	for _, b := range msg {
 		dbg = dbg + fmt.Sprintf("0x%02X ", b)
 	}
-	b.logger.Errorf("[Broker] Bad message (%d bytes): %s", len(msg), dbg)
+	b.logger.Errorf("Could not unmarshal incoming message (%d bytes): %s", len(msg), dbg)
 }
 
 func (b *Broker) handleMessage(c *client, msgBytes []byte, msg *cellaserv.Message) error {
@@ -169,14 +169,14 @@ func (b *Broker) handleMessage(c *client, msgBytes []byte, msg *cellaserv.Messag
 
 // Handles incoming connections
 func (b *Broker) serve(l net.Listener, errCh chan error) {
-	b.logger.Infof("[Broker] Listening on %s", b.Options.ListenAddress)
+	b.logger.Infof("Listening on %s", b.Options.ListenAddress)
 
 	for {
 		conn, err := l.Accept()
 		nerr, ok := err.(net.Error)
 		if ok {
 			if nerr.Temporary() {
-				b.logger.Warnf("[Broker] Could not accept: %s", err)
+				b.logger.Warnf("Could not accept incoming connection: %s", err)
 				time.Sleep(10 * time.Millisecond)
 				continue
 			} else {
@@ -201,7 +201,7 @@ func (b *Broker) Run(ctx context.Context) error {
 	// Create TCP listenener for incoming connections
 	l, err := net.Listen("tcp", b.Options.ListenAddress)
 	if err != nil {
-		b.logger.Errorf("[Broker] Could not listen: %s", err)
+		b.logger.Errorf("Could not listen on address %s: %s", b.Options.ListenAddress, err)
 		errCh <- err
 	} else {
 		defer l.Close()

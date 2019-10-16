@@ -122,7 +122,7 @@ func (c *Client) handleRequest(req *cellaserv.Request) error {
 	name := req.GetServiceName()
 	ident := req.GetServiceIdentification()
 	method := req.GetMethod()
-	c.logger.Debugf("[Client] Received %s[%s].%s", name, ident, method)
+	c.logger.Debugf("Received request %s[%s].%s", name, ident, method)
 
 	// Dispatch request to spies
 	hasSpied := false
@@ -130,7 +130,7 @@ func (c *Client) handleRequest(req *cellaserv.Request) error {
 	if ok {
 		spies, ok := identsSpied[ident]
 		if ok {
-			c.logger.Infof("[Spy] Received spied request: %s[%s].%s", name, ident, method)
+			c.logger.Infof("Received spied request: %s[%s].%s", name, ident, method)
 			hasSpied = true
 			// Spy handler is called when the reply to this request is received
 			c.spyRequestsPending[req.GetId()] = &spyPendingRequest{
@@ -146,7 +146,7 @@ func (c *Client) handleRequest(req *cellaserv.Request) error {
 		if hasSpied {
 			return nil
 		}
-		return fmt.Errorf("[Request] No such service: %s", name)
+		return fmt.Errorf("No such service: %s", name)
 	}
 
 	srvc, ok := idents[ident]
@@ -154,7 +154,7 @@ func (c *Client) handleRequest(req *cellaserv.Request) error {
 		if hasSpied {
 			return nil
 		}
-		return fmt.Errorf("[Request] No such service identification for %s: %s, has: %v", name, ident, idents)
+		return fmt.Errorf("No such service identification for %s: %s, has: %v", name, ident, idents)
 	}
 
 	replyData, replyErr := srvc.handleRequest(req, method)
@@ -170,7 +170,7 @@ func (c *Client) sendRequestReply(req *cellaserv.Request, replyData []byte, repl
 
 	if replyErr != nil {
 		// Log error
-		c.logger.Warnf("[Request] Reply error: %s", replyErr)
+		c.logger.Warnf("Sending reply error: %s", replyErr)
 
 		// Add error info to reply
 		errString := replyErr.Error()
@@ -185,7 +185,7 @@ func (c *Client) sendRequestReply(req *cellaserv.Request, replyData []byte, repl
 
 	err := common.SendMessage(c.conn, msg)
 	if err != nil {
-		c.logger.Warnf("[Request] Could not send reply: %s", err)
+		c.logger.Warnf("Could not send reply: %s", err)
 	}
 }
 
@@ -194,7 +194,7 @@ func (c *Client) handleReply(rep *cellaserv.Reply) error {
 	hasSpied := false
 	spyPending, ok := c.spyRequestsPending[rep.GetId()]
 	if ok {
-		c.logger.Infof("[Spy] Dispatching request and reply %d", rep.GetId())
+		c.logger.Infof("Dispatching request and reply %d", rep.GetId())
 		hasSpied = true
 		for _, spy := range spyPending.spies {
 			spy(spyPending.req, rep)
@@ -217,7 +217,7 @@ func (c *Client) handleReply(rep *cellaserv.Reply) error {
 
 func (c *Client) handlePublish(pub *cellaserv.Publish) {
 	eventName := pub.GetEvent()
-	c.logger.Infof("[Publish] Received: %s", eventName)
+	c.logger.Infof("Received event: %q", eventName)
 	for _, h := range c.subscribers {
 		if matched, _ := filepath.Match(h.eventPattern, eventName); matched {
 			h.handle(eventName, pub.GetData())
@@ -288,13 +288,16 @@ func (c *Client) RegisterService(s *service) {
 	}
 	msgContentBytes, _ := proto.Marshal(msgContent)
 	msg := &cellaserv.Message{Type: msgType, Content: msgContentBytes}
-	common.SendMessage(c.conn, msg)
+	err := common.SendMessage(c.conn, msg)
+	if err != nil {
+		c.logger.Errorf("Could not send message: %s", err)
+	}
 
-	c.logger.Infof("[Client] Service %s registered", s)
+	c.logger.Infof("Registered service %s", s)
 }
 
 func (c *Client) Publish(event string, data interface{}) {
-	c.logger.Debugf("[Publish] Sending: %s(%v)", event, data)
+	c.logger.Debugf("Publishing %s(%v)", event, data)
 
 	// Serialize request payload
 	dataBytes, err := json.Marshal(data)
@@ -315,7 +318,10 @@ func (c *Client) Publish(event string, data interface{}) {
 	// Send message
 	msgType := cellaserv.Message_Publish
 	msg := &cellaserv.Message{Type: msgType, Content: pubBytes}
-	common.SendMessage(c.conn, msg)
+	err = common.SendMessage(c.conn, msg)
+	if err != nil {
+		c.logger.Errorf("Could not send message: %s", err)
+	}
 }
 
 // Log sends a log message to cellaserv
@@ -329,7 +335,7 @@ func (c *Client) Subscribe(eventPattern string, handler subscriberHandler) error
 		eventPattern: eventPattern,
 		handle:       handler,
 	}
-	c.logger.Infof("[Subscribe] Subscribing to event pattern: %s", eventPattern)
+	c.logger.Infof("Subscribing to event pattern: %q", eventPattern)
 	c.subscribers = append(c.subscribers, s)
 
 	// Prepare subscribe message
@@ -343,7 +349,10 @@ func (c *Client) Subscribe(eventPattern string, handler subscriberHandler) error
 	msg := cellaserv.Message{Type: msgType, Content: subBytes}
 
 	// Send subscribe message
-	common.SendMessage(c.conn, &msg)
+	err = common.SendMessage(c.conn, &msg)
+	if err != nil {
+		c.logger.Errorf("Could not send message: %s", err)
+	}
 
 	return nil
 }
@@ -365,7 +374,10 @@ func (c *Client) Spy(serviceName string, serviceIdentification string, handler s
 		ServiceIdentification: serviceIdentification,
 		ClientId:              c.ClientId(),
 	}
-	cs.Request("spy", spyArgs)
+	_, err := cs.Request("spy", spyArgs)
+	if err != nil {
+		c.logger.Warnf("Spy request returned error: %s", err)
+	}
 
 	return nil
 }
@@ -420,7 +432,7 @@ func newClient(conn net.Conn, name string) *Client {
 			case msg := <-c.msgCh:
 				err := c.handleMessage(msg)
 				if err != nil {
-					c.logger.Errorf("[Message] Handle: %s", err)
+					c.logger.Errorf("Could not handle incoming message: %s", err)
 				}
 			case <-c.closeCh:
 				if !c.quit {

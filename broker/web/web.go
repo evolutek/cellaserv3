@@ -143,7 +143,7 @@ func (h *Handler) apiSubscribe(w http.ResponseWriter, r *http.Request) {
 
 // overview returns a page showing the list of connections, events and services
 func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
-	h.logger.Debug("[Web] Serving overview")
+	h.logger.Debug("Serving overview")
 
 	overview := struct {
 		Clients  []api.ClientJSON
@@ -159,7 +159,7 @@ func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) logs(w http.ResponseWriter, r *http.Request) {
-	h.logger.Debug("[Web] Serving logs")
+	h.logger.Debug("Serving logs")
 	pattern := route.Param(r.Context(), "pattern")
 	logs, err := h.broker.GetLogsByPattern(pattern)
 	if err != nil {
@@ -238,7 +238,7 @@ func (h *Handler) Run(ctx context.Context) error {
 		Name:          "web",
 	})
 
-	h.logger.Infof("[Web] Listening on http://%s", h.options.ListenAddr)
+	h.logger.Infof("Listening on http://%s", h.options.ListenAddr)
 	handler := cors.Default().Handler(h.router)
 	httpSrv := &http.Server{
 		Addr:    h.options.ListenAddr,

@@ -57,6 +57,6 @@ func AddFlags(a *kingpin.Application) {
 }
 
 func NewLogger(module string) Logger {
-	contextLogger := log.WithFields(log.Fields{"module": module})
+	contextLogger := log.WithField("module", module)
 	return contextLogger
 }

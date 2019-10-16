@@ -9,17 +9,19 @@ import (
 	"bitbucket.org/evolutek/cellaserv3/broker/cellaserv/api"
 	"bitbucket.org/evolutek/cellaserv3/common"
 	"github.com/golang/protobuf/proto"
+	log "github.com/sirupsen/logrus"
 )
 
 // client represents a single connnection to cellaserv
 type client struct {
-	mtx        sync.Mutex // protects slices below
-	conn       net.Conn   // connection of this client
-	id         string     // unique id for this client
-	name       string     // name of this client
-	spying     []*service // services spied by this client
-	services   []*service // services registered by this clietn
-	subscribes []string   // events subscribed by the client
+	mtx        sync.Mutex    // protects slices below
+	conn       net.Conn      // connection of this client
+	id         string        // unique id for this client
+	name       string        // name of this client
+	spying     []*service    // services spied by this client
+	services   []*service    // services registered by this clietn
+	subscribes []string      // events subscribed by the client
+	logger     common.Logger // client logger
 }
 
 func (c *client) String() string {
@@ -56,7 +58,7 @@ func (b *Broker) GetClient(clientId string) (*client, bool) {
 func (b *Broker) sendRawMessage(conn net.Conn, msg []byte) {
 	err := common.SendRawMessage(conn, msg)
 	if err != nil {
-		b.logger.Errorf("[Net] Could not send message %s to %s: %s", msg, conn, err)
+		b.logger.Errorf("Could not send message %s to %s: %s", msg, conn, err)
 	}
 }
 
@@ -65,20 +67,23 @@ func (b *Broker) sendReply(c *client, req *cellaserv.Request, data []byte) {
 	rep := &cellaserv.Reply{Id: req.Id, Data: data}
 	repBytes, err := proto.Marshal(rep)
 	if err != nil {
-		b.logger.Errorf("[Net] Could not marshal outgoing reply: %s", err)
+		c.logger.Errorf("Could not marshal outgoing reply: %s", err)
 	}
 
 	msgType := cellaserv.Message_Reply
 	msg := &cellaserv.Message{Type: msgType, Content: repBytes}
 
-	common.SendMessage(c.conn, msg)
+	err = common.SendMessage(c.conn, msg)
+	if err != nil {
+		c.logger.Errorf("Could not send message: %s", err)
+	}
 }
 
 // TODO(halfr): move from Broker to client
 func (b *Broker) sendReplyError(c *client, req *cellaserv.Request, errType cellaserv.Reply_Error_Type) {
-	err := &cellaserv.Reply_Error{Type: errType}
+	replyErr := &cellaserv.Reply_Error{Type: errType}
 
-	reply := &cellaserv.Reply{Error: err, Id: req.Id}
+	reply := &cellaserv.Reply{Error: replyErr, Id: req.Id}
 	replyBytes, _ := proto.Marshal(reply)
 
 	msgType := cellaserv.Message_Reply
@@ -86,7 +91,10 @@ func (b *Broker) sendReplyError(c *client, req *cellaserv.Request, errType cella
 		Type:    msgType,
 		Content: replyBytes,
 	}
-	common.SendMessage(c.conn, msg)
+	err := common.SendMessage(c.conn, msg)
+	if err != nil {
+		c.logger.Errorf("Could not send message: %s", err)
+	}
 }
 
 // Remove services registered by this connection. The client's mutex must be
@@ -94,7 +102,7 @@ func (b *Broker) sendReplyError(c *client, req *cellaserv.Request, errType cella
 func (b *Broker) removeServicesOnClient(c *client) {
 	// TODO: notify goroutines waiting for acks for this service
 	for _, s := range c.services {
-		b.logger.Infof("[Service] Remove %s", s)
+		c.logger.Infof("Remove service %s", s)
 		pubJSON, _ := json.Marshal(s.JSONStruct())
 		b.cellaservPublishBytes(logLostService, pubJSON)
 
@@ -109,9 +117,9 @@ func (b *Broker) removeServicesOnClient(c *client) {
 		// service.
 		s.spiesMtx.RLock()
 		for _, c := range s.spies {
-			b.logger.Debugf("[Service] Close spy conn: %s", c)
+			c.logger.Debugf("Close spy conn: %s", c)
 			if err := c.conn.Close(); err != nil {
-				b.logger.Errorf("Could not close connection: %s", err)
+				c.logger.Errorf("Could not close connection: %s", err)
 			}
 		}
 		s.spiesMtx.RLock()
@@ -174,9 +182,14 @@ func (b *Broker) removeSpiesOnClient(c *client) {
 
 func (b *Broker) newClient(conn net.Conn) *client {
 	// Register this connection
+	id := conn.RemoteAddr().String()
 	c := &client{
 		conn: conn,
-		id:   conn.RemoteAddr().String(),
+		id:   id,
+		logger: log.WithFields(log.Fields{
+			"module": "client",
+			"id":     id,
+		}),
 	}
 	b.mapClientIdToClient.Store(c.id, c)
 	b.cellaservPublish(logNewClient, c.JSONStruct())
@@ -186,7 +199,7 @@ func (b *Broker) newClient(conn net.Conn) *client {
 func (b *Broker) RenameClientFromRequest(req *cellaserv.Request, name string) {
 	client, err := b.GetRequestSender(req)
 	if err != nil {
-		b.logger.Warnf("[client] Could not rename client: %s", err)
+		b.logger.Warnf("Could not rename client: %s", err)
 		return
 	}
 	// Set client name

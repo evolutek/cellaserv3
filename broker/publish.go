@@ -20,7 +20,7 @@ const (
 )
 
 func (b *Broker) handlePublish(c *client, msgBytes []byte, pub *cellaserv.Publish) {
-	b.logger.Infof("[Publish] %s publishes %s", c, pub.Event)
+	c.logger.Infof("Publishes event %q", pub.Event)
 	b.doPublish(msgBytes, pub)
 }
 
@@ -52,15 +52,16 @@ func (b *Broker) doPublish(msgBytes []byte, pub *cellaserv.Publish) {
 		subs[client] = true
 	}
 
-	for c, _ := range subs {
-		b.logger.Debugf("[Publish] %s → %s", pub.Event, c)
+	for c := range subs {
+		c.logger.Debugf("Receives event %q", pub.Event)
 		b.sendRawMessage(c.conn, msgBytes)
 	}
 }
 
 // cellaservPublishBytes sends a publish message from cellaserv
+// TODO: use the cellaserv internal service logger
 func (b *Broker) cellaservPublishBytes(event string, data []byte) {
-	b.logger.Debugf("[Broker] Publishing %s", event)
+	b.logger.Debugf("Publishes event %q", event)
 
 	pub := &cellaserv.Publish{Event: event}
 	if data != nil {
@@ -68,14 +69,14 @@ func (b *Broker) cellaservPublishBytes(event string, data []byte) {
 	}
 	pubBytes, err := proto.Marshal(pub)
 	if err != nil {
-		b.logger.Errorf("[Cellaserv] Could not marshal event: %s", err)
+		b.logger.Errorf("Could not marshal event: %s", err)
 		return
 	}
 	msgType := cellaserv.Message_Publish
 	msg := &cellaserv.Message{Type: msgType, Content: pubBytes}
 	msgBytes, err := proto.Marshal(msg)
 	if err != nil {
-		b.logger.Errorf("[Cellaserv] Could not marshal event: %s", err)
+		b.logger.Errorf("Could not marshal event: %s", err)
 		return
 	}
 

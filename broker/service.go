@@ -6,8 +6,11 @@ import (
 
 	"bitbucket.org/evolutek/cellaserv3/broker/cellaserv/api"
 	"bitbucket.org/evolutek/cellaserv3/common"
+	log "github.com/sirupsen/logrus"
 )
 
+// A service is a unique entity attached to a cellaserv client that can
+// received requests.
 type service struct {
 	client         *client
 	Name           string
@@ -40,7 +43,7 @@ func (s *service) sendMessage(msg []byte) {
 
 // spyByRequest finds the sender of the request and add it to the
 func (b *Broker) SpyService(c *client, srvc *service) {
-	b.logger.Debugf("[Cellaserv] %s spies on %s[%s]", c, srvc)
+	srvc.logger.Debugf("client %s spies on service %s", c, srvc)
 
 	srvc.spiesMtx.Lock()
 	srvc.spies = append(srvc.spies, c)
@@ -51,6 +54,8 @@ func (b *Broker) SpyService(c *client, srvc *service) {
 	c.mtx.Unlock()
 }
 
+// GetService returns the service identified by the name and identification in
+// argument, or an error if not found.
 func (b *Broker) GetService(name string, identification string) (srvc *service, err error) {
 	var ok bool
 	b.servicesMtx.RLock()
@@ -63,11 +68,16 @@ func (b *Broker) GetService(name string, identification string) (srvc *service, 
 }
 
 func newService(c *client, name string, ident string) *service {
-	s := &service{
+	// Setup logger
+	logger := log.WithFields(log.Fields{"module": "service",
+		"name":           name,
+		"identification": ident})
+
+	// Create service
+	return &service{
 		client:         c,
 		Name:           name,
 		Identification: ident,
+		logger:         logger,
 	}
-	s.logger = common.NewLogger(s.String())
-	return s
 }
