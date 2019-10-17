@@ -110,15 +110,15 @@ func (h *Handler) apiSubscribe(w http.ResponseWriter, r *http.Request) {
 	// Upgrade connection to websocket
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Print("upgrade:", err)
+		log.Print("Could not upgrade:", err)
 		return
 	}
 	defer c.Close()
 
 	// TODO(halfr): handle websocket control messages and cancel subscribe
 	// when the socket is closed
-	err = h.client.Subscribe(event,
-		func(eventName string, eventBytes []byte) {
+	err = h.client.SubscribeUntil(event,
+		func(eventName string, eventBytes []byte) bool {
 			msg := struct {
 				Name string `json:"name"`
 				Data string `json:"data"`
@@ -126,13 +126,14 @@ func (h *Handler) apiSubscribe(w http.ResponseWriter, r *http.Request) {
 			msgTxt, err := json.Marshal(msg)
 			if err != nil {
 				h.logger.Error("json:", err)
-				return
+				return false
 			}
 			err = c.WriteMessage(websocket.TextMessage, msgTxt)
 			if err != nil {
-				h.logger.Error("write:", err)
-				return
+				h.logger.Error("Write error:", err)
+				return true
 			}
+			return false
 		})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

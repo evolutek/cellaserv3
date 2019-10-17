@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -24,10 +25,11 @@ const (
 )
 
 type subscriberHandler func(eventName string, eventData []byte)
+type subscriberUntilHandler func(eventName string, eventData []byte) bool
 
 type subscriber struct {
 	eventPattern string
-	handle       subscriberHandler
+	handle       subscriberUntilHandler
 }
 
 type spyHandler func(req *cellaserv.Request, rep *cellaserv.Reply)
@@ -39,8 +41,9 @@ type spyPendingRequest struct {
 	spies []spyHandler
 }
 
-// TODO(halfr): add mutex to protect against race condition
 type Client struct {
+	mtx sync.RWMutex
+
 	// Nonce used to compute request ids
 	// This field address must be aligned to prevent unaligned atomic
 	// writes. See: https://github.com/golang/go/issues/23345
@@ -218,11 +221,25 @@ func (c *Client) handleReply(rep *cellaserv.Reply) error {
 func (c *Client) handlePublish(pub *cellaserv.Publish) {
 	eventName := pub.GetEvent()
 	c.logger.Infof("Received event: %q", eventName)
-	for _, h := range c.subscribers {
-		if matched, _ := filepath.Match(h.eventPattern, eventName); matched {
-			h.handle(eventName, pub.GetData())
+	var subscriberToRemove []int
+	c.mtx.Lock()
+	for idx, s := range c.subscribers {
+		if matched, _ := filepath.Match(s.eventPattern, eventName); matched {
+			shouldRemove := s.handle(eventName, pub.GetData())
+			if shouldRemove {
+				// Prepend, so that subscriberToRemove is in
+				// reverse index order, this is a required
+				// property for removal algorithm.
+				subscriberToRemove = append([]int{idx}, subscriberToRemove...)
+			}
 		}
 	}
+	for _, idx := range subscriberToRemove {
+		c.subscribers[idx] = c.subscribers[len(c.subscribers)-1]
+		c.subscribers = c.subscribers[:len(c.subscribers)-1]
+
+	}
+	c.mtx.Unlock()
 }
 
 func (c *Client) handleMessage(msg *cellaserv.Message) error {
@@ -330,6 +347,15 @@ func (c *Client) Log(what string, data interface{}) {
 }
 
 func (c *Client) Subscribe(eventPattern string, handler subscriberHandler) error {
+	// Wraps the handler to always return false, i.e. never remove the subscriber
+	wrapped := func(eventName string, eventData []byte) bool {
+		handler(eventName, eventData)
+		return false
+	}
+	return c.SubscribeUntil(eventPattern, wrapped)
+}
+
+func (c *Client) SubscribeUntil(eventPattern string, handler subscriberUntilHandler) error {
 	// Create and add to subscriber map
 	s := &subscriber{
 		eventPattern: eventPattern,
