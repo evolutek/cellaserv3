@@ -44,7 +44,7 @@ func (cs *Cellaserv) nameClient(req *cellaserv.Request) (interface{}, error) {
 	var data api.NameClientRequest
 	err := json.Unmarshal(req.Data, &data)
 	if err != nil {
-		cs.logger.Warnf("[Cellaserv] Could not unmarshal request data: %s, %s", req.Data, err)
+		cs.logger.Warnf("Could not unmarshal request data: %s, %s", req.Data, err)
 		return nil, err
 	}
 
@@ -110,13 +110,13 @@ func (cs *Cellaserv) getLogs(req *cellaserv.Request) (interface{}, error) {
 	var data api.GetLogsRequest
 	err := json.Unmarshal(req.Data, &data)
 	if err != nil {
-		cs.logger.Warnf("[Cellaserv] Invalid get_logs() request: %s", err)
+		cs.logger.Warnf("Invalid get_logs() request: %s", err)
 		return nil, err
 	}
 
 	logs, err := cs.broker.GetLogsByPattern(data.Pattern)
 	if err != nil {
-		cs.logger.Warnf("[Cellaserv] Could not get logs: %s", err)
+		cs.logger.Warnf("Could not get logs: %s", err)
 		return nil, err
 	}
 
@@ -135,7 +135,7 @@ func (cs *Cellaserv) Run(ctx context.Context) error {
 	// Create the cellaserv service
 	c := client.NewClient(client.ClientOpts{
 		CellaservAddr: cs.options.BrokerAddr,
-		Name:          "cellaserv-service",
+		Name:          "cellaserv",
 	})
 	service := c.NewService("cellaserv", "")
 	service.HandleRequestFunc("whoami", cs.whoami)
@@ -150,9 +150,6 @@ func (cs *Cellaserv) Run(ctx context.Context) error {
 	// Run the service
 	c.RegisterService(service)
 	close(cs.registeredCh)
-
-	// Manually name the client, because it requires the cellaserv service.
-	c.Cs.Request("name_client", api.NameClientRequest{"cellaserv"})
 
 	select {
 	case <-c.Quit():
