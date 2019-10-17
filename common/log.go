@@ -30,8 +30,8 @@ type Logger interface {
 }
 
 type loggerSettings struct {
-	level  string
-	format string
+	level string
+	trace bool
 }
 
 func (s *loggerSettings) apply(ctx *kingpin.ParseContext) error {
@@ -39,6 +39,7 @@ func (s *loggerSettings) apply(ctx *kingpin.ParseContext) error {
 	if err != nil {
 		return err
 	}
+	log.SetReportCaller(s.trace)
 	log.SetLevel(lvl)
 	log.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp: true,
@@ -53,6 +54,8 @@ func AddFlags(a *kingpin.Application) {
 	a.Flag("log-level", "Only log messages with the given severity or above. Valid levels: [debug, info, warn, error, fatal]").
 		Default("debug").
 		StringVar(&s.level)
+	a.Flag("log-trace", "Whether to include function and file information in the log.").
+		BoolVar(&s.trace)
 	a.Action(s.apply)
 }
 
