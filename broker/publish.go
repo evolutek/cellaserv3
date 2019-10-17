@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
+	cellaserv "bitbucket.org/evolutek/cellaserv3-protobuf"
 	"github.com/golang/protobuf/proto"
 )
 

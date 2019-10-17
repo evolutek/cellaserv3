@@ -3,7 +3,7 @@ package broker
 import (
 	"encoding/json"
 
-	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
+	cellaserv "bitbucket.org/evolutek/cellaserv3-protobuf"
 )
 
 // Add service to services map

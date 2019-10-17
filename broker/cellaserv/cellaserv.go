@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
+	cellaserv "bitbucket.org/evolutek/cellaserv3-protobuf"
 	"bitbucket.org/evolutek/cellaserv3/broker"
 	"bitbucket.org/evolutek/cellaserv3/broker/cellaserv/api"
 	"bitbucket.org/evolutek/cellaserv3/client"

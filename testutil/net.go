@@ -4,7 +4,7 @@ import (
 	"net"
 	"testing"
 
-	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
+	cellaserv "bitbucket.org/evolutek/cellaserv3-protobuf"
 	"bitbucket.org/evolutek/cellaserv3/common"
 	"github.com/golang/protobuf/proto"
 )

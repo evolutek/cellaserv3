@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
+	cellaserv "bitbucket.org/evolutek/cellaserv3-protobuf"
 	"bitbucket.org/evolutek/cellaserv3/broker/cellaserv/api"
 	"bitbucket.org/evolutek/cellaserv3/client"
 	"bitbucket.org/evolutek/cellaserv3/common"

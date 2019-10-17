@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
+	cellaserv "bitbucket.org/evolutek/cellaserv3-protobuf"
 	"bitbucket.org/evolutek/cellaserv3/broker/cellaserv/api"
 	cs_api "bitbucket.org/evolutek/cellaserv3/broker/cellaserv/api"
 	"bitbucket.org/evolutek/cellaserv3/common"

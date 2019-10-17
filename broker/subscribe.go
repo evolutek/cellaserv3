@@ -3,7 +3,7 @@ package broker
 import (
 	"strings"
 
-	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
+	cellaserv "bitbucket.org/evolutek/cellaserv3-protobuf"
 )
 
 type logSubscriberJSON struct {

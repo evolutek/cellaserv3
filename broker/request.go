@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	cellaserv "bitbucket.org/evolutek/cellaserv2-protobuf"
+	cellaserv "bitbucket.org/evolutek/cellaserv3-protobuf"
 	"bitbucket.org/evolutek/cellaserv3/common"
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
