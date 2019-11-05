@@ -43,6 +43,7 @@ func main() {
 	publish := a.Command("publish", "Sends a publish event. Alias: p").Alias("p")
 	publishEvent := publish.Arg("event", "Event name to publish.").Required().String()
 	publishArgs := publish.Arg("args", "Key=value content of event to publish. Example: x=42 y=43").StringMap()
+	publishRaw := publish.Flag("raw", "Raw bytes to send as publish data").String()
 
 	subscribe := a.Command("subscribe", "Listens for an event. Alias: s").Alias("s")
 	subscribeEventPattern := subscribe.Arg("event", "Event name pattern to subscribe to.").Required().String()
@@ -100,7 +101,11 @@ func main() {
 		json.Unmarshal(respBytes, &requestResponse)
 		fmt.Printf("%#v\n", requestResponse)
 	case "publish":
-		conn.Publish(*publishEvent, *publishArgs)
+		if *publishRaw != "" {
+			conn.PublishRaw(*publishEvent, []byte(*publishRaw))
+		} else {
+			conn.Publish(*publishEvent, *publishArgs)
+		}
 	case "subscribe":
 		err := conn.Subscribe(*subscribeEventPattern,
 			func(eventName string, eventBytes []byte) {

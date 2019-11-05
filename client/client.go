@@ -321,11 +321,14 @@ func (c *Client) Publish(event string, data interface{}) {
 	if err != nil {
 		panic(fmt.Sprintf("Could not marshal publish data to JSON: %v", data))
 	}
+	c.PublishRaw(event, dataBytes)
+}
 
+func (c *Client) PublishRaw(event string, data []byte) {
 	// Prepare Publish message
 	pub := &cellaserv.Publish{
 		Event: event,
-		Data:  dataBytes,
+		Data:  data,
 	}
 	pubBytes, err := proto.Marshal(pub)
 	if err != nil {
