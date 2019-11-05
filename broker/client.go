@@ -188,7 +188,7 @@ func (b *Broker) newClient(conn net.Conn) *client {
 		id:   id,
 		logger: log.WithFields(log.Fields{
 			"module": "client",
-			"id":     id,
+			"client": id,
 		}),
 	}
 	b.mapClientIdToClient.Store(c.id, c)
