@@ -32,11 +32,13 @@ func (b *Broker) handleRegister(c *client, msg *cellaserv.Register) {
 		pubJSON, _ := json.Marshal(s.JSONStruct())
 		b.cellaservPublishBytes(logLostService, pubJSON)
 
-		for i, ss := range c.services {
+		service_client := s.client
+
+		for i, ss := range service_client.services {
 			if ss.Name == name && ss.Identification == ident {
 				// Remove from slice
-				c.services[i] = c.services[len(c.services)-1]
-				c.services = c.services[:len(c.services)-1]
+				service_client.services[i] = service_client.services[len(service_client.services)-1]
+				service_client.services = service_client.services[:len(service_client.services)-1]
 				break
 			}
 		}
