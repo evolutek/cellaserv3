@@ -69,6 +69,7 @@ func (b *Broker) handleRequest(c *client, msgRaw []byte, req *cellaserv.Request)
 	b.reqIds[id] = reqTrack
 	b.reqIdsMtx.Unlock()
 
+	logger.Info("Sending to service: ", srvc)
 	srvc.sendMessage(msgRaw)
 
 	// Forward message to the spies of this service
