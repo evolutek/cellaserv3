@@ -64,6 +64,19 @@ func (s *serviceStub) Request(method string, data interface{}) ([]byte, error) {
 	return s.sendRequest(req)
 }
 
+func (s *serviceStub) RequestRaw(method string, dataBytes []byte) ([]byte, error) {
+	// Create Request
+	req := &cellaserv.Request{
+		Data:                  dataBytes,
+		ServiceName:           s.name,
+		ServiceIdentification: s.identification,
+		Method:                method,
+		// Id set by client
+	}
+
+	return s.sendRequest(req)
+}
+
 func NewServiceStub(c *Client, name string, identification string) *serviceStub {
 	return &serviceStub{
 		name:           name,

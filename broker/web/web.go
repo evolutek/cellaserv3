@@ -58,7 +58,7 @@ func (h *Handler) makeRequestFromHTTP(r *http.Request) ([]byte, error) {
 	if len(body) == 0 {
 		resp, err = serviceStub.RequestNoData(method)
 	} else {
-		resp, err = serviceStub.Request(method, body)
+		resp, err = serviceStub.RequestRaw(method, body)
 	}
 
 	return resp, err
