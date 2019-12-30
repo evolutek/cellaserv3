@@ -12,6 +12,7 @@ import (
 	"net/http/pprof"
 	"path"
 	"strings"
+	"time"
 
 	"bitbucket.org/evolutek/cellaserv3/broker"
 	"bitbucket.org/evolutek/cellaserv3/broker/cellaserv/api"
@@ -102,21 +103,53 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
+// WebSocket constants
+const (
+	// Time allowed to write a message to the peer.
+	writeWait = 10 * time.Second
+
+	// Time allowed to read the next pong message from the peer.
+	pongWait = 60 * time.Second
+
+	// Send pings to peer with this period. Must be less than pongWait.
+	pingPeriod = (pongWait * 9) / 10
+)
+
+func (h *Handler) ping(ws *websocket.Conn, done chan struct{}) {
+	ticker := time.NewTicker(pingPeriod)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			if err := ws.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(writeWait)); err != nil {
+				h.logger.Errorf("ping: %s", err)
+				done <- struct{}{}
+			}
+		case <-done:
+			return
+		}
+	}
+}
+
 // apiSubscribe handles websocket subscribes
 func (h *Handler) apiSubscribe(w http.ResponseWriter, r *http.Request) {
 	// Extract request parameters
 	event := route.Param(r.Context(), "event")
 
 	// Upgrade connection to websocket
-	c, err := upgrader.Upgrade(w, r, nil)
+	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Print("Could not upgrade:", err)
 		return
 	}
-	defer c.Close()
+	defer ws.Close()
 
-	// TODO(halfr): handle websocket control messages and cancel subscribe
-	// when the socket is closed
+	ws.SetPongHandler(func(string) error { ws.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+
+	done := make(chan struct{})
+
+	go h.ping(ws, done)
+
 	err = h.client.SubscribeUntil(event,
 		func(eventName string, eventBytes []byte) bool {
 			msg := struct {
@@ -128,9 +161,10 @@ func (h *Handler) apiSubscribe(w http.ResponseWriter, r *http.Request) {
 				h.logger.Error("json:", err)
 				return false
 			}
-			err = c.WriteMessage(websocket.TextMessage, msgTxt)
+			err = ws.WriteMessage(websocket.TextMessage, msgTxt)
 			if err != nil {
 				h.logger.Error("Write error:", err)
+				done <- struct{}{}
 				return true
 			}
 			return false
@@ -139,7 +173,8 @@ func (h *Handler) apiSubscribe(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	<-h.client.Quit()
+
+	<-done
 }
 
 // overview returns a page showing the list of connections, events and services
