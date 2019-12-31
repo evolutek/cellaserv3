@@ -171,7 +171,7 @@ func main() {
 		for _, service := range services {
 			fmt.Print(service.Name)
 			if service.Identification != "" {
-				fmt.Printf("[%s]", service.Identification)
+				fmt.Printf("/%s", service.Identification)
 			}
 			fmt.Print("\n")
 		}
