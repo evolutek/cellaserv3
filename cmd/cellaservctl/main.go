@@ -39,6 +39,7 @@ func main() {
 	request := a.Command("request", "Makes a request to a service. Alias: r").Alias("r")
 	requestPath := request.Arg("path", "Request path. Example service.method or service/id.method.").Required().String()
 	requestArgs := request.Arg("args", "Key=value arguments of the method. Example: x=42 y=43").StringMap()
+	requestRaw := request.Flag("raw", "Do not decode response as JSON").Bool()
 
 	publish := a.Command("publish", "Sends a publish event. Alias: p").Alias("p")
 	publishEvent := publish.Arg("event", "Event name to publish.").Required().String()
@@ -96,10 +97,15 @@ func main() {
 		respBytes, err := service.Request(requestMethod, requestArgs)
 		kingpin.FatalIfError(err, "Request failed")
 
-		// Display response
-		var requestResponse interface{}
-		json.Unmarshal(respBytes, &requestResponse)
-		fmt.Printf("%#v\n", requestResponse)
+		if !*requestRaw {
+			// Display response
+			var requestResponse interface{}
+			json.Unmarshal(respBytes, &requestResponse)
+			pretty, _ := json.MarshalIndent(requestResponse, "", "  ")
+			fmt.Println(string(pretty))
+		} else {
+			fmt.Printf("%s\n", respBytes)
+		}
 	case "publish":
 		if *publishRaw != "" {
 			conn.PublishRaw(*publishEvent, []byte(*publishRaw))
