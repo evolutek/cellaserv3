@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"bitbucket.org/evolutek/cellaserv3/broker"
-	"bitbucket.org/evolutek/cellaserv3/client"
-	"bitbucket.org/evolutek/cellaserv3/common"
+	"github.com/evolutek/cellaserv3/broker"
+	"github.com/evolutek/cellaserv3/client"
+	"github.com/evolutek/cellaserv3/common"
 )
 
 func WithTestBroker(t *testing.T, listenAddress string, testFn func(client.ClientOpts)) {

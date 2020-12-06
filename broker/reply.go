@@ -1,7 +1,7 @@
 package broker
 
 import (
-	cellaserv "bitbucket.org/evolutek/cellaserv3-protobuf"
+	cellaserv "github.com/evolutek/cellaserv3-protobuf"
 	log "github.com/sirupsen/logrus"
 )
 

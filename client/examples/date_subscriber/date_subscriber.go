@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"log"
 
-	"bitbucket.org/evolutek/cellaserv3/client"
+	"github.com/evolutek/cellaserv3/client"
 )
 
 func main() {

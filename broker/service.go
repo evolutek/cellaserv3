@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sync"
 
-	"bitbucket.org/evolutek/cellaserv3/broker/cellaserv/api"
-	"bitbucket.org/evolutek/cellaserv3/common"
+	"github.com/evolutek/cellaserv3/broker/cellaserv/api"
+	"github.com/evolutek/cellaserv3/common"
 	log "github.com/sirupsen/logrus"
 )
 

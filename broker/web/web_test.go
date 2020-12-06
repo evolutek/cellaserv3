@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"bitbucket.org/evolutek/cellaserv3/broker"
-	"bitbucket.org/evolutek/cellaserv3/broker/cellaserv"
-	"bitbucket.org/evolutek/cellaserv3/common"
+	"github.com/evolutek/cellaserv3/broker"
+	"github.com/evolutek/cellaserv3/broker/cellaserv"
+	"github.com/evolutek/cellaserv3/common"
 	"github.com/prometheus/prometheus/util/testutil"
 )
 

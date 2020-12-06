@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	cellaserv "bitbucket.org/evolutek/cellaserv3-protobuf"
-	"bitbucket.org/evolutek/cellaserv3/broker"
-	"bitbucket.org/evolutek/cellaserv3/common"
+	cellaserv "github.com/evolutek/cellaserv3-protobuf"
+	"github.com/evolutek/cellaserv3/broker"
+	"github.com/evolutek/cellaserv3/common"
 )
 
 func TestServiceRequest(t *testing.T) {

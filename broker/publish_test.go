@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	cellaserv "bitbucket.org/evolutek/cellaserv3-protobuf"
-	"bitbucket.org/evolutek/cellaserv3/testutil"
+	cellaserv "github.com/evolutek/cellaserv3-protobuf"
+	"github.com/evolutek/cellaserv3/testutil"
 	"github.com/golang/protobuf/proto"
 )
 

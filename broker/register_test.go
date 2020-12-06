@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"bitbucket.org/evolutek/cellaserv3/testutil"
+	"github.com/evolutek/cellaserv3/testutil"
 )
 
 func serviceIsRegistered(b *Broker, t *testing.T, serviceName string, serviceIdent string) {

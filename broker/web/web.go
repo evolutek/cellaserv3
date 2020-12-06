@@ -14,10 +14,10 @@ import (
 	"strings"
 	"time"
 
-	"bitbucket.org/evolutek/cellaserv3/broker"
-	"bitbucket.org/evolutek/cellaserv3/broker/cellaserv/api"
-	"bitbucket.org/evolutek/cellaserv3/client"
-	"bitbucket.org/evolutek/cellaserv3/common"
+	"github.com/evolutek/cellaserv3/broker"
+	"github.com/evolutek/cellaserv3/broker/cellaserv/api"
+	"github.com/evolutek/cellaserv3/client"
+	"github.com/evolutek/cellaserv3/common"
 
 	"github.com/gorilla/websocket"
 	"github.com/prometheus/client_golang/prometheus"

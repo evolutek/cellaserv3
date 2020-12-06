@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	cellaserv "bitbucket.org/evolutek/cellaserv3-protobuf"
+	cellaserv "github.com/evolutek/cellaserv3-protobuf"
 )
 
 type RequestHandlerFunc func(*cellaserv.Request) (interface{}, error)

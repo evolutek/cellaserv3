@@ -12,10 +12,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	cellaserv "bitbucket.org/evolutek/cellaserv3-protobuf"
-	"bitbucket.org/evolutek/cellaserv3/broker/cellaserv/api"
-	cs_api "bitbucket.org/evolutek/cellaserv3/broker/cellaserv/api"
-	"bitbucket.org/evolutek/cellaserv3/common"
+	cellaserv "github.com/evolutek/cellaserv3-protobuf"
+	"github.com/evolutek/cellaserv3/broker/cellaserv/api"
+	cs_api "github.com/evolutek/cellaserv3/broker/cellaserv/api"
+	"github.com/evolutek/cellaserv3/common"
 	"github.com/golang/protobuf/proto"
 )
 

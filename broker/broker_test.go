@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"bitbucket.org/evolutek/cellaserv3/common"
+	"github.com/evolutek/cellaserv3/common"
 )
 
 // brokerTest is a test harness for testing the broker. It takes care of

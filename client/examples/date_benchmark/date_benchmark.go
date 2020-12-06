@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"bitbucket.org/evolutek/cellaserv3/client"
+	"github.com/evolutek/cellaserv3/client"
 )
 
 const (

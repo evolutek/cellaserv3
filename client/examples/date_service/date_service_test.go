@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"bitbucket.org/evolutek/cellaserv3/client"
-	"bitbucket.org/evolutek/cellaserv3/testutil/broker"
+	"github.com/evolutek/cellaserv3/client"
+	"github.com/evolutek/cellaserv3/testutil/broker"
 )
 
 func TestDateService(t *testing.T) {

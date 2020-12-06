@@ -1,7 +1,7 @@
 package broker
 
 import (
-	"bitbucket.org/evolutek/cellaserv3/broker/cellaserv/api"
+	"github.com/evolutek/cellaserv3/broker/cellaserv/api"
 )
 
 func (b *Broker) GetEventsJSON() []api.EventInfoJSON {

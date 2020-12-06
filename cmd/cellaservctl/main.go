@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	cellaserv "bitbucket.org/evolutek/cellaserv3-protobuf"
-	"bitbucket.org/evolutek/cellaserv3/broker/cellaserv/api"
-	"bitbucket.org/evolutek/cellaserv3/client"
-	"bitbucket.org/evolutek/cellaserv3/common"
+	cellaserv "github.com/evolutek/cellaserv3-protobuf"
+	"github.com/evolutek/cellaserv3/broker/cellaserv/api"
+	"github.com/evolutek/cellaserv3/client"
+	"github.com/evolutek/cellaserv3/common"
 	"github.com/pkg/errors"
 
 	kingpin "gopkg.in/alecthomas/kingpin.v2"

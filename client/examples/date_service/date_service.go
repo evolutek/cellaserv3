@@ -3,8 +3,8 @@ package main
 import (
 	"time"
 
-	cellaserv "bitbucket.org/evolutek/cellaserv3-protobuf"
-	"bitbucket.org/evolutek/cellaserv3/client"
+	cellaserv "github.com/evolutek/cellaserv3-protobuf"
+	"github.com/evolutek/cellaserv3/client"
 )
 
 func runDateService(opts client.ClientOpts) {

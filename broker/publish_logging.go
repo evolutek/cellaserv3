@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"bitbucket.org/evolutek/cellaserv3/broker/cellaserv/api"
+	"github.com/evolutek/cellaserv3/broker/cellaserv/api"
 )
 
 func (b *Broker) GetLogsByPattern(pattern string) (api.GetLogsResponse, error) {

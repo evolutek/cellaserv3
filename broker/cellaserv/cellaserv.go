@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 
-	cellaserv "bitbucket.org/evolutek/cellaserv3-protobuf"
-	"bitbucket.org/evolutek/cellaserv3/broker"
-	"bitbucket.org/evolutek/cellaserv3/broker/cellaserv/api"
-	"bitbucket.org/evolutek/cellaserv3/client"
-	"bitbucket.org/evolutek/cellaserv3/common"
+	cellaserv "github.com/evolutek/cellaserv3-protobuf"
+	"github.com/evolutek/cellaserv3/broker"
+	"github.com/evolutek/cellaserv3/broker/cellaserv/api"
+	"github.com/evolutek/cellaserv3/client"
+	"github.com/evolutek/cellaserv3/common"
 )
 
 // Options for the cellaserv service

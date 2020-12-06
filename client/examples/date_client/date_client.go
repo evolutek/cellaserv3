@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"bitbucket.org/evolutek/cellaserv3/client"
+	"github.com/evolutek/cellaserv3/client"
 )
 
 func main() {

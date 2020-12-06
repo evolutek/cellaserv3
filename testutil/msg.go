@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	cellaserv "bitbucket.org/evolutek/cellaserv3-protobuf"
+	cellaserv "github.com/evolutek/cellaserv3-protobuf"
 	"github.com/golang/protobuf/proto"
 )
 

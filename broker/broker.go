@@ -9,8 +9,8 @@ import (
 
 	_ "net/http/pprof"
 
-	cellaserv "bitbucket.org/evolutek/cellaserv3-protobuf"
-	"bitbucket.org/evolutek/cellaserv3/common"
+	cellaserv "github.com/evolutek/cellaserv3-protobuf"
+	"github.com/evolutek/cellaserv3/common"
 	"github.com/golang/protobuf/proto"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -192,7 +192,7 @@ func (b *Broker) Run(ctx context.Context) error {
 	if b.Options.PublishLoggingEnabled {
 		err := b.rotatePublishLoggers()
 		if err != nil {
-			return fmt.Errorf("Could not setup publish loggers: %s", err)
+			b.logger.Warnf("Could not setup publish loggers: %s", err)
 		}
 	}
 
