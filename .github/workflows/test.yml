@@ -11,8 +11,8 @@ jobs:
     - name: Setup Go environment
       uses: actions/setup-go@v2
 
-    - name: Build
-      run: go get ./...
+    - name: Get dependencies
+      run: go get -v -t -d ./...
 
     - name: Test
       run: go test ./...
