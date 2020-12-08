@@ -1,8 +1,8 @@
 # cellaserv3
 
 ![Test Status](https://github.com/evolutek/cellaserv3/workflows/Test/badge.svg)
-![GoDoc](https://godoc.org/github.com/evolutek/cellaserv3?status.svg)]
-![Go Report Card](https://goreportcard.com/badge/github.com/evolutek/cellaserv3)]
+![GoDoc](https://godoc.org/github.com/evolutek/cellaserv3?status.svg)
+![Go Report Card](https://goreportcard.com/badge/github.com/evolutek/cellaserv3)
 
 This repository contains:
 
@@ -23,6 +23,14 @@ cellaservctl:
 
 ```
 go get github.com/evolutek/cellaserv3/cmd/cellaservctl && cellaservctl
+```
+
+## Testing
+
+Run:
+
+```
+go test ./...
 ```
 
 ### Configuration
@@ -102,22 +110,3 @@ The prototype of the `spy` request is the following:
 ```
 cellaserv.spy(serviceName string, serviceIdentification string)
 ```
-
-### Logging
-
-TODO: document
-
-## TODO
-
-* P1 client: document `CS_HOST`
-* P1 broker: fix var directory handling, store logs in /var/log, not /var/cellaserv
-* P1 use errors.Wrapf
-* P1 broker: decouple services and spies
-* P2 client: prometheus monitoring in the go client
-* P2 broker: add unsubscribe verb, used for client in the web interface
-* P2 fix arch linux package
-* P2 client: add config variables
-* P2 client: add service dependencies
-* P2 common: add back `CS_DEBUG`
-* P2 use structured logging
-* P2 send publish with a channel, avoid blocking while handling other stuff
