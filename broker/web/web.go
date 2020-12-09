@@ -215,12 +215,16 @@ func (h *Handler) executeTemplate(w http.ResponseWriter, name string, data inter
 	tmpl := template.New("").Funcs(tmplFuncs(h.options))
 
 	templatesPath := path.Join(h.options.AssetsPath, "templates")
-	template.Must(tmpl.ParseFiles(
+	_, err := tmpl.ParseFiles(
 		path.Join(templatesPath, "_base.html"),
-		path.Join(templatesPath, name)))
+		path.Join(templatesPath, name))
+	if err != nil {
+		http.Error(w, "Could not load templates!", http.StatusInternalServerError)
+		return
+	}
 
 	var buffer bytes.Buffer
-	err := tmpl.ExecuteTemplate(&buffer, "_base.html", data)
+	err = tmpl.ExecuteTemplate(&buffer, "_base.html", data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
