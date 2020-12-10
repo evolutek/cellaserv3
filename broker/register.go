@@ -7,7 +7,7 @@ import (
 )
 
 // Add service to services map
-func (b *Broker) handleRegister(c *client, msg *cellaserv.Register) {
+func (b *Broker) HandleRegister(c *client, msg *cellaserv.Register) {
 	name := msg.Name
 	ident := msg.Identification
 

@@ -54,6 +54,30 @@ func (cs *Cellaserv) nameClient(req *cellaserv.Request) (interface{}, error) {
 	return nil, nil
 }
 
+// registerService registers a new cellaserv service.
+func (cs *Cellaserv) registerService(req *cellaserv.Request) (interface{}, error) {
+	var data api.RegisterServiceRequest
+	err := json.Unmarshal(req.Data, &data)
+	if err != nil {
+		cs.logger.Warnf("Could not unmarshal request data: %s, %s", req.Data, err)
+		return nil, err
+	}
+
+	client, err := cs.broker.GetRequestSender(req)
+	if err != nil {
+		cs.logger.Warnf("Could not find client: %s", err)
+		return nil, err
+	}
+
+	register := &cellaserv.Register{
+		Name:           data.Name,
+		Identification: data.Identification,
+	}
+	cs.broker.HandleRegister(client, register)
+
+	return nil, nil
+}
+
 // listClients replies with the list of currently connected clients
 func (cs *Cellaserv) listClients(*cellaserv.Request) (interface{}, error) {
 	return cs.broker.GetClientsJSON(), nil
@@ -138,14 +162,16 @@ func (cs *Cellaserv) Run(ctx context.Context) error {
 		Name:          "cellaserv",
 	})
 	service := c.NewService("cellaserv", "")
-	service.HandleRequestFunc("whoami", cs.whoami)
-	service.HandleRequestFunc("name_client", cs.nameClient)
-	service.HandleRequestFunc("list_clients", cs.listClients)
-	service.HandleRequestFunc("list_services", cs.listServices)
-	service.HandleRequestFunc("list_events", cs.listEvents)
+
 	service.HandleRequestFunc("get_logs", cs.getLogs)
+	service.HandleRequestFunc("list_clients", cs.listClients)
+	service.HandleRequestFunc("list_events", cs.listEvents)
+	service.HandleRequestFunc("list_services", cs.listServices)
+	service.HandleRequestFunc("name_client", cs.nameClient)
+	service.HandleRequestFunc("register_service", cs.registerService)
 	service.HandleRequestFunc("shutdown", cs.shutdown)
 	service.HandleRequestFunc("version", version)
+	service.HandleRequestFunc("whoami", cs.whoami)
 
 	// Run the service
 	c.RegisterService(service)

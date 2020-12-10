@@ -15,7 +15,7 @@ import (
 	"github.com/evolutek/cellaserv3/testutil"
 )
 
-func WithTestBrokerOptions(t *testing.T, options broker.Options, testFn func(client.ClientOpts)) {
+func WithTestBrokerOptions(t *testing.T, options broker.Options, testFn func(client.ClientOpts, *broker.Broker)) {
 	ctxBroker, cancelBroker := context.WithCancel(context.Background())
 	ctxCellaserv, cancelCellaserv := context.WithCancel(context.Background())
 	broker := broker.New(options, common.NewLogger("broker"))
@@ -36,10 +36,10 @@ func WithTestBrokerOptions(t *testing.T, options broker.Options, testFn func(cli
 	}()
 
 	<-broker.Started()
-	<-cs.registeredCh
+	<-cs.Registered()
 
 	// Run the test
-	testFn(client.ClientOpts{CellaservAddr: options.ListenAddress})
+	testFn(client.ClientOpts{CellaservAddr: options.ListenAddress}, broker)
 	time.Sleep(50 * time.Millisecond)
 
 	// Teardown broker
@@ -57,16 +57,52 @@ func TestPublishLog(t *testing.T) {
 		ListenAddress:         ":4203",
 		LogsDir:               tmpDir,
 		PublishLoggingEnabled: true,
-	}, func(clientOpts client.ClientOpts) {
+	}, func(clientOpts client.ClientOpts, broker *broker.Broker) {
 		c := client.NewClient(clientOpts)
 		publishData := "coucou"
 		c.Publish("log.test_publish", publishData)
 		cs := client.NewServiceStub(c, "cellaserv", "")
-		respDataBytes, err := cs.Request("get_logs", api.GetLogsRequest{"test_pub*"})
+		respDataBytes, err := cs.Request("get_logs", api.GetLogsRequest{
+			Pattern: "test_pub*",
+		})
+		testutil.Ok(t, err)
 		var respData map[string]string
 		err = json.Unmarshal(respDataBytes, &respData)
 		testutil.Ok(t, err)
 		publishDataJson, _ := json.Marshal(publishData)
 		testutil.Equals(t, respData, map[string]string{"test_publish": string(publishDataJson) + "\n"})
+	})
+}
+
+func listServices(t *testing.T, cs *client.ServiceStub) []api.ServiceJSON {
+	respDataBytes, err := cs.Request("list_services", nil)
+	testutil.Ok(t, err)
+	var resp []api.ServiceJSON
+	err = json.Unmarshal(respDataBytes, &resp)
+	testutil.Ok(t, err)
+	return resp
+}
+
+func TestRegisterRequest(t *testing.T) {
+	WithTestBrokerOptions(t, broker.Options{
+		ListenAddress: ":4203",
+	}, func(clientOpts client.ClientOpts, broker *broker.Broker) {
+		c := client.NewClient(clientOpts)
+		cs := client.NewServiceStub(c, "cellaserv", "")
+
+		servicesPre := listServices(t, cs)
+
+		// Register
+		respDataBytes, err := cs.Request("register_service", api.RegisterServiceRequest{
+			Name:           "test_service",
+			Identification: "test_identification",
+		})
+		testutil.Ok(t, err)
+		testutil.Equals(t, []byte("null"), respDataBytes)
+
+		servicesPost := listServices(t, cs)
+
+		testutil.Equals(t, len(servicesPre)+1, len(servicesPost))
+
 	})
 }

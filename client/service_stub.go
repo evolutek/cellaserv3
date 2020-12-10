@@ -7,18 +7,18 @@ import (
 	cellaserv "github.com/evolutek/cellaserv3-protobuf"
 )
 
-type serviceStub struct {
+type ServiceStub struct {
 	name           string
 	identification string
 
 	client *Client
 }
 
-func (s *serviceStub) String() string {
+func (s *ServiceStub) String() string {
 	return fmt.Sprintf("%s[%s]", s.name, s.identification)
 }
 
-func (s *serviceStub) sendRequest(req *cellaserv.Request) ([]byte, error) {
+func (s *ServiceStub) sendRequest(req *cellaserv.Request) ([]byte, error) {
 	s.client.logger.Debugf("Sending request %s[%s].%s(%s)", req.ServiceName, req.ServiceIdentification, req.Method, req.Data)
 
 	reply := s.client.sendRequestWaitForReply(req)
@@ -33,7 +33,7 @@ func (s *serviceStub) sendRequest(req *cellaserv.Request) ([]byte, error) {
 	return reply.GetData(), nil
 }
 
-func (s *serviceStub) RequestNoData(method string) ([]byte, error) {
+func (s *ServiceStub) RequestNoData(method string) ([]byte, error) {
 	// Create Request
 	req := &cellaserv.Request{
 		ServiceName:           s.name,
@@ -45,7 +45,7 @@ func (s *serviceStub) RequestNoData(method string) ([]byte, error) {
 	return s.sendRequest(req)
 }
 
-func (s *serviceStub) Request(method string, data interface{}) ([]byte, error) {
+func (s *ServiceStub) Request(method string, data interface{}) ([]byte, error) {
 	// Serialize request payload
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
@@ -64,7 +64,7 @@ func (s *serviceStub) Request(method string, data interface{}) ([]byte, error) {
 	return s.sendRequest(req)
 }
 
-func (s *serviceStub) RequestRaw(method string, dataBytes []byte) ([]byte, error) {
+func (s *ServiceStub) RequestRaw(method string, dataBytes []byte) ([]byte, error) {
 	// Create Request
 	req := &cellaserv.Request{
 		Data:                  dataBytes,
@@ -77,8 +77,8 @@ func (s *serviceStub) RequestRaw(method string, dataBytes []byte) ([]byte, error
 	return s.sendRequest(req)
 }
 
-func NewServiceStub(c *Client, name string, identification string) *serviceStub {
-	return &serviceStub{
+func NewServiceStub(c *Client, name string, identification string) *ServiceStub {
+	return &ServiceStub{
 		name:           name,
 		identification: identification,
 		client:         c,

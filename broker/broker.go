@@ -124,7 +124,7 @@ func (b *Broker) handleMessage(c *client, msgBytes []byte, msg *cellaserv.Messag
 			b.logUnmarshalError(msgContent)
 			return fmt.Errorf("Could not unmarshal register: %s", err)
 		}
-		b.handleRegister(c, register)
+		b.HandleRegister(c, register)
 		return nil
 	case cellaserv.Message_Request:
 		request := &cellaserv.Request{}

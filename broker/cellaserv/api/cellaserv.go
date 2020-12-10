@@ -17,6 +17,11 @@ type NameClientRequest struct {
 	Name string
 }
 
+type RegisterServiceRequest struct {
+	Name           string
+	Identification string
+}
+
 type SpyRequest struct {
 	ServiceName           string
 	ServiceIdentification string

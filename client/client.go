@@ -50,7 +50,7 @@ type Client struct {
 	currentRequestId uint64
 
 	// The cellaserv service stub
-	Cs *serviceStub
+	Cs *ServiceStub
 
 	logger common.Logger
 
