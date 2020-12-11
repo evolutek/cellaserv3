@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	template "html/template"
 	template_text "html/template"
 	"io/ioutil"
@@ -205,21 +206,22 @@ func (h *Handler) logs(w http.ResponseWriter, r *http.Request) {
 	h.executeTemplate(w, "logs.html", logs)
 }
 
-func tmplFuncs(options *Options) template_text.FuncMap {
+func tmplFuncs(options *Options, templateName string) template_text.FuncMap {
 	return template_text.FuncMap{
-		"pathPrefix": func() string { return options.ExternalURLPath },
+		"pathPrefix":   func() string { return options.ExternalURLPath },
+		"templateName": func() string { return templateName },
 	}
 }
 
 func (h *Handler) executeTemplate(w http.ResponseWriter, name string, data interface{}) {
-	tmpl := template.New("").Funcs(tmplFuncs(h.options))
+	tmpl := template.New("").Funcs(tmplFuncs(h.options, name))
 
 	templatesPath := path.Join(h.options.AssetsPath, "templates")
 	_, err := tmpl.ParseFiles(
 		path.Join(templatesPath, "_base.html"),
 		path.Join(templatesPath, name))
 	if err != nil {
-		http.Error(w, "Could not load templates!", http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Could not load templates: %v", err), http.StatusInternalServerError)
 		return
 	}
 
