@@ -1,8 +1,8 @@
 # cellaserv3
 
 ![Test Status](https://github.com/evolutek/cellaserv3/workflows/Test/badge.svg)
-![GoDoc](https://godoc.org/github.com/evolutek/cellaserv3?status.svg)
-![Go Report Card](https://goreportcard.com/badge/github.com/evolutek/cellaserv3)
+[![GoDoc](https://godoc.org/github.com/evolutek/cellaserv3?status.svg)](https://godoc.org/github.com/evolutek/cellaserv3)
+[![Go Report Card](https://goreportcard.com/badge/github.com/evolutek/cellaserv3)](https://goreportcard.com/report/github.com/evolutek/cellaserv3)
 
 This repository contains:
 
