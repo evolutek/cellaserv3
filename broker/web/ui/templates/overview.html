@@ -53,20 +53,18 @@
 	  <td>{{ $elt.Name }}</td>
 	  <td>{{ or $elt.Identification "Ø" }}</td>
 	  <td class="service-action">
-	    <a href="{{ pathPrefix }}/logs/{{ $elt.Name }}">
-	      <button type="button" class="btn btn-secondary btn-service-action">
-		<span data-feather="rss"></span>
-	      </button>
+	    <a href="{{ pathPrefix }}/logs/{{ $elt.Name }}" class="btn btn-secondary btn-service-action">
+	      <span data-feather="rss"></span>
 	    </a>
-	    <button type="button" class="btn btn-secondary btn-service-action">
+	    <a class="btn btn-secondary btn-service-action">
 	      <span data-feather="radio"></span>
-	    </button>
-	    <button type="button" class="btn btn-secondary btn-service-action">
+	    </a>
+	    <a class="btn btn-secondary btn-service-action">
 	      <span data-feather="send"></span>
-	    </button>
-	    <button type="button" class="btn btn-secondary btn-service-action">
+	    </a>
+	    <a class="btn btn-secondary btn-service-action">
 	      <span data-feather="help-circle"></span>
-	    </button>
+	    </a>
 
 	  </td>
 	</tr>
