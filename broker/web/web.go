@@ -66,9 +66,43 @@ func (h *Handler) makeRequestFromHTTP(r *http.Request) ([]byte, error) {
 	return resp, err
 }
 
-func (h *Handler) request(w http.ResponseWriter, r *http.Request) {
-	requestData := struct {
-	}{}
+type requestTemplateData struct {
+	Name           string
+	Identification string
+	Method         string
+	Arguments      string
+	Response       string
+}
+
+func (h *Handler) handleRequest(w http.ResponseWriter, r *http.Request) {
+	requestData := requestTemplateData{
+		Name:           r.FormValue("name"),
+		Identification: r.FormValue("identification"),
+		Method:         r.FormValue("method"),
+		Arguments:      r.FormValue("arguments"),
+	}
+
+	h.executeTemplate(w, "request.html", requestData)
+}
+
+func (h *Handler) handleRequestPost(w http.ResponseWriter, r *http.Request) {
+	requestData := requestTemplateData{
+		Name:           r.PostFormValue("name"),
+		Identification: r.PostFormValue("identification"),
+		Method:         r.PostFormValue("method"),
+		Arguments:      r.PostFormValue("arguments"),
+	}
+
+	serviceStub := client.NewServiceStub(h.client, requestData.Name, requestData.Identification)
+
+	resp, err := serviceStub.RequestRaw(requestData.Method, []byte(requestData.Arguments))
+
+	if err != nil {
+		requestData.Response = err.Error()
+	} else {
+		requestData.Response = string(resp)
+	}
+
 	h.executeTemplate(w, "request.html", requestData)
 }
 
@@ -322,8 +356,8 @@ func New(o *Options, logger common.Logger, broker *broker.Broker) *Handler {
 		http.Redirect(w, r, "/logs/*", http.StatusFound)
 	})
 	router.Get("/logs/:pattern", h.logs)
-	router.Get("/request/:service/:method", h.request)
-	router.Post("/request/:service/:method", h.request)
+	router.Get("/request", h.handleRequest)
+	router.Post("/request", h.handleRequestPost)
 	router.Get("/static/*filepath", route.FileServe(path.Join(o.AssetsPath, "static")))
 
 	router.Get("/metrics", promhttp.HandlerFor(prometheus.Gatherers{prometheus.DefaultGatherer, broker.Monitoring.Registry}, promhttp.HandlerOpts{}).ServeHTTP)

@@ -48,6 +48,13 @@
               </li>
 
               <li class="nav-item">
+		<a class="nav-link {{ if eq "request.html" templateName }} active {{ end }}" href="{{ pathPrefix }}/request">
+                  <span data-feather="send"></span>
+                  Request
+                </a>
+              </li>
+
+              <li class="nav-item">
 		<a class="nav-link" href="{{ pathPrefix }}/metrics">
                   <span data-feather="bar-chart"></span>
                   Metrics

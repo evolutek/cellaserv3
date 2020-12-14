@@ -1,0 +1,44 @@
+{{define "head"}}
+{{end}}
+
+{{define "content"}}
+<div class="d-flex flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+  <h1 class="h2">Request</h1>
+</div>
+
+<form action="/request" method="post">
+  <div class="form-row">
+    <div class="form-group col-md-4">
+      <label for="name">Service name</label>
+      <input class="form-control" id="name" name="name" placeholder="date" {{ if .Name }}value="{{ .Name }}"{{ end }}>
+    </div>
+
+    <div class="form-group col-md-4">
+      <label for="identification">Service identification</label>
+      <input class="form-control" id="identification" name="identification" placeholder="" {{ if .Identification }}value="{{ .Identification }}"{{ end }}>
+    </div>
+
+    <div class="form-group col-md-4">
+      <label for="identification">Method</label>
+      <input class="form-control" id="method" name="method" placeholder="time" {{ if .Method }}value="{{ .Method }}"{{ end }}>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label for="arguments">Arguments</label>
+    <input type="text" class="form-control" id="arguments" name="arguments" placeholder="{}" {{ if .Arguments }}value="{{ .Arguments }}"{{ end }}>
+    <small class="form-text text-muted">JSON</small>
+  </div>
+
+  <button type="submit" class="btn btn-primary float-right">Request</button>
+</form>
+
+{{ if .Response }}
+<h2>Response</h2>
+{{ end }}
+
+<pre>
+{{ .Response }}
+</pre>
+
+{{end}}
