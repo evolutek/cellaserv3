@@ -137,7 +137,7 @@ func main() {
 			// Create service stub
 			stub := client.NewServiceStub(conn, "cellaserv", "")
 			// Make request
-			respBytes, err := stub.Request("get_logs", &api.GetLogsRequest{*logPattern})
+			respBytes, err := stub.Request("get_logs", &api.GetLogsRequest{Pattern: *logPattern})
 			kingpin.FatalIfError(err, "Request failed")
 			var getLogsResponse api.GetLogsResponse
 			err = json.Unmarshal(respBytes, &getLogsResponse)
