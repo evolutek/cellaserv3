@@ -89,14 +89,16 @@
     <!-- Bootstrap core JavaScript
     ================================================== -->
     <!-- Placed at the end of the document so the pages load faster -->
-    <script src="{{ pathPrefix }}/static/js/jquery-3.3.1.slim.min.js"></script>
-    <script src="{{ pathPrefix }}/static/js/popper.min.js"></script>
-    <script src="{{ pathPrefix }}/static/js/bootstrap.min.js"></script>
+    <script src="{{ pathPrefix }}/static/js/jquery-3.5.1.slim.min.js"></script>
+    <script src="{{ pathPrefix }}/static/js/bootstrap.bundle.min.js"></script>
 
     <!-- Icons -->
     <script src="{{ pathPrefix}}/static/js/feather.min.js"></script>
     <script>
       feather.replace()
+      $(function () {
+	$('[data-toggle="tooltip"]').tooltip()
+      })
     </script>
   </body>
 </html>
