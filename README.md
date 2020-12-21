@@ -16,13 +16,17 @@ This repository contains:
 cellaserv:
 
 ```
-go get github.com/evolutek/cellaserv3/cmd/cellaserv && cellaserv
+cd ~
+go get github.com/evolutek/cellaserv3/cmd/cellaserv
+./go/bin/cellaserv --logs-dir=/tmp
 ```
 
 cellaservctl:
 
 ```
-go get github.com/evolutek/cellaserv3/cmd/cellaservctl && cellaservctl
+cd ~
+go get github.com/evolutek/cellaserv3/cmd/cellaservctl
+./go/bin/cellaservctl --help
 ```
 
 ## Testing
@@ -30,6 +34,7 @@ go get github.com/evolutek/cellaserv3/cmd/cellaservctl && cellaservctl
 Run:
 
 ```
+cd go/src/github.com/evolutek/cellaserv3
 go test ./...
 ```
 
