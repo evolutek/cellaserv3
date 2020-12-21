@@ -3,10 +3,14 @@
 
 {{define "content"}}
 <div class="d-flex flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-  <h1 class="h2">Logs</h1>
+  <h1 class="h2">Logs: {{ .LogName }}</h1>
 </div>
 
-{{ range $log, $content :=  . }}
+<p>
+Entries: {{ len .Logs }}
+</p>
+
+{{ range $log, $content := .Logs }}
 <h2>{{ $log }}</h2>
 <pre>
 {{ $content }}

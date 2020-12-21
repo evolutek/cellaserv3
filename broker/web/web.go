@@ -213,7 +213,7 @@ func (h *Handler) apiSubscribe(w http.ResponseWriter, r *http.Request) {
 }
 
 // overview returns a page showing the list of connections, events and services
-func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) handleOverview(w http.ResponseWriter, r *http.Request) {
 	h.logger.Debug("Serving overview")
 
 	overview := struct {
@@ -229,7 +229,7 @@ func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
 	h.executeTemplate(w, "overview.html", overview)
 }
 
-func (h *Handler) logs(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) handleLogs(w http.ResponseWriter, r *http.Request) {
 	h.logger.Debug("Serving logs")
 	pattern := route.Param(r.Context(), "pattern")
 	logs, err := h.broker.GetLogsByPattern(pattern)
@@ -237,7 +237,16 @@ func (h *Handler) logs(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	h.executeTemplate(w, "logs.html", logs)
+
+	data := struct {
+		LogName string
+		Logs    map[string]string
+	}{
+		LogName: pattern,
+		Logs:    logs,
+	}
+
+	h.executeTemplate(w, "logs.html", data)
 }
 
 func tmplFuncs(options *Options, templateName string) template_text.FuncMap {
@@ -268,7 +277,7 @@ func (h *Handler) executeTemplate(w http.ResponseWriter, name string, data inter
 	w.Write(buffer.Bytes())
 }
 
-func serveDebug(w http.ResponseWriter, req *http.Request) {
+func handleDebug(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
 	subpath := route.Param(ctx, "subpath")
 
@@ -351,15 +360,18 @@ func New(o *Options, logger common.Logger, broker *broker.Broker) *Handler {
 	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/overview", http.StatusFound)
 	})
-	router.Get("/overview", h.overview)
+	router.Get("/overview", h.handleOverview)
 	router.Get("/logs", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/logs/*", http.StatusFound)
 	})
-	router.Get("/logs/:pattern", h.logs)
+	router.Get("/logs/:pattern", h.handleLogs)
 	router.Get("/request", h.handleRequest)
 	router.Post("/request", h.handleRequestPost)
+
+	// Static files
 	router.Get("/static/*filepath", route.FileServe(path.Join(o.AssetsPath, "static")))
 
+	// Prometheus HTTP endpoint
 	router.Get("/metrics", promhttp.HandlerFor(prometheus.Gatherers{prometheus.DefaultGatherer, broker.Monitoring.Registry}, promhttp.HandlerOpts{}).ServeHTTP)
 
 	// cellaserv HTTP API
@@ -369,8 +381,9 @@ func New(o *Options, logger common.Logger, broker *broker.Broker) *Handler {
 	router.Get("/api/v1/subscribe/:event", h.apiSubscribe)
 	// TODO(halfr): spy
 
-	router.Get("/debug/*subpath", serveDebug)
-	router.Post("/debug/*subpath", serveDebug)
+	// Go debug
+	router.Get("/debug/*subpath", handleDebug)
+	router.Post("/debug/*subpath", handleDebug)
 
 	return h
 }
